@@ -1,0 +1,124 @@
+5.) Detailed view into Kubernetes Objects:
+------------------------------------------
+
+Understand Pods:
+----------------
+Pods: Pods are the smallest deployable units in Kubernetes. A pod is scheduled on the one node, ensuring co-location of containers.
+
+Key features:
+- A pod can contain one or more containers
+- Containers within a pod share the same network namespace and can communicate via localhost
+- Ephemeral in nature, and can be created, destroyed, and recreated dynamically.
+
+Pod Lifecycle: Pods have a defined lifecycle with states like Pending, Running, Succeeded, Failed, and Unknown.
+
+handson:
+- Get Pods status
+- Describe Pods // kubectl describe pod aws-node-5z5hq -n kube-system
+- Check the logs // kubectl logs aws-load-balancer-controller-6cb4b5dc7f-fwcwm -n kube-system
+- Delete the pod
+- check the pod manifest
+- understand the init containers and multi-container / sidecar container use case
+    - sample: manifests\multi-container-pod-demo.yaml
+- Logs of a container: kubectl logs multi-container-example -c log-sidecar
+- validate all the states of pod lifecycle
+    - sample: manifests\pod-lifecycle-demo.yaml
+
+Note: Not possible to simulate a unknown state pod, it typically occurs when the kubelet can't report on the status of a pod, often due to communication issues between the kubelet and the API server.
+
+Understanding the Kubernetes ReplicaSet & Deployment Object:
+------------------------------------------------------------
+
+ReplicaSets: ReplicaSets ensure that a specified number of pod replicas are running at any given time.
+
+Key features:
+- Maintains a stable set of replica Pods
+- Ensures high availability
+- Allows easy scaling of applications
+
+
+Deployments: Deployments provide declarative updates for Pods and ReplicaSets.
+
+Key features:
+- Describe desired state
+- Control the rate of change to Pods
+- Provide rollback functionality
+
+
+Why deployment over replicasets:
+
+- Deployments provide built-in support for rolling updates and easy rollbacks
+- Deployments maintain a revision history, allowing you to roll back to previous versions
+- Deployments offer configurable update strategies like RollingUpdate and Recreate
+- Deployments act as a higher-level abstraction, managing ReplicaSets behind the scenes
+
+
+handson:
+- check the deployment manifest
+    - sample: manifests\pcatalog-deployment-demo.yaml
+- deploy this
+- Get deployment status // kuectl get deployment -n default
+- Describe deployment
+- Check the logs
+- check the replicasets created from the deployment Object
+- check the pods created from the replicaset object
+- manually scale the deployment // kubectl scale deployment product-catalog-demo --replicas=5
+- update the deployment with the latest application version // change the image from nginx to httpd
+- rollback the deployment to the older version // kubectl rollout undo deployment/product-catalog
+- delete the deployment
+
+
+Understanding the Kubernetes Service Object:
+--------------------------------------------
+
+Services provide network access to a set of Pods.
+
+Types of Services:
+a.) ClusterIP: Exposes the service on an internal IP in the cluster
+b.) NodePort: Exposes the service on each Node's IP at a static port, but generally used in Non-prod scenarios, mention the range - (30000 - 32767)
+c.) LoadBalancer: Exposes the service externally using a cloud provider's load balancer
+
+Key features:
+Services provide a stable IP address and DNS name for a set of Pods
+Enables seamless service discovery and load balancing within the cluster
+Abstract the underlying Pod network, allowing applications to communicate without knowing the exact Pod IPs, which can change frequently.
+
+handson:
+- check the following service manifest
+    - sample: manifests\pcatalog-service-cip-demo.yaml
+    - sample: manifests\pcatalog-service-np-demo.yaml
+    - sample: manifests\pcatalog-service-lb-demo.yaml
+- Deploy the services
+- Get service status
+- Describe service
+- Check the logs
+
+Check the ClusterIp service by getting inside a container in the same namespace:
+e.g.: 
+- kubectl exec -it running-pod -- bash
+- 
+
+Understanding the Kubernetes ConfigMaps & Secrets Object:
+---------------------------------------------------------
+
+ConfigMaps allow us to decouple configuration artifacts from image content.
+
+Key features:
+- Store non-sensitive configuration data as key-value pairs or files.
+- Can be mounted as volumes or used as environment variables in Pods.
+
+Secrets are used to store and manage sensitive information.
+
+Key features:
+- Secrets are stored in a base64 encoded format
+- Store sensitive information (e.g., passwords, tokens) with encryption at rest in etcd.
+- Can be mounted as volumes or used as environment variables in Pods, similar to ConfigMaps, but with additional security measures.
+
+
+handson:
+- check the manifest files
+    - sample: manifests\pcatalog-cm-demo.yaml
+    - sample: manifests\pcatalog-secret-string-data-demo.yaml
+    - sample: manifests\pcatalog-secret-data-demo.yaml
+- Apply them
+- Check their accesibility in the Pods which are created via the deployment

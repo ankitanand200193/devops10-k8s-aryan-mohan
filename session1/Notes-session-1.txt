@@ -1,0 +1,167 @@
+---------------------------
+Kubernetes Training Program
+---------------------------
+
+Pre-Req:
+--------
+
+
+Virtual Machine: 
+- Hardware level virtualization - Hypervisor (e.g: Microsoft Hyper-V, Oracle VirtualBox, VMware Workstation)
+- CPU, RAM and Storage from the physical machines
+- Digital replica of a physical machine. Partitions the physical hardware into multiple environments
+- Takes minutes to boot up
+- I can run a windows VM on top of a Linux physical server
+
+Container: 
+- OS level virtualization - Container Runtime (e.g: Dockerd, containerd, CRI-O, Podman)
+- Software code package containing an application’s code, its libraries, and other dependencies that make up the application running environment.
+- Bootup time is in seconds
+- Base Infra could be a physical server or a virtual machine.
+- e.g.: docker run -dp ubuntu # this container will only run if the base server/VM is of linux
+
+
+
+-------------
+Session 1:
+-------------
+
+How does Kubernetes cluster components Work Together:
+-----------------------------------------------------
+
+- User/Admins interacts with the cluster through the API server
+- API server validates and processes the request
+- Scheduler assigns Pods to Nodes
+- Controller manager ensures desired state is maintained
+- kubelet communicates with the API server and manages containers on the node
+- kube-proxy manages network communication for Pods
+- etcd saves the current state of the cluster
+
+
+Hands-on Lab: 
+-------------
+
+
+1.) Minikube:
+-------------
+
+Minikube: Minikube is a tool that lets you run Kubernetes locally, creating a single-node cluster on your machine.
+
+Installation Steps: installation-guides\Minikube-Installation-Windows.txt
+
+Task: 
+    a.) Run: `kubectl get pods -A`
+        Explain the meaning of this command
+        Explain the usage of all the pods in the output of the above command
+
+
+2.) Navigating the Kubernetes CLI (kubectl) commands:
+-----------------------------------------------------
+
+kubectl is the command-line tool for interacting with Kubernetes clusters.
+
+Common commands with examples:
+a.) kubectl get: List resources
+e.g.: kubectl get pods -A
+
+b.) kubectl describe: Show detailed information about a resource
+e.g.: kubectl describe pod coredns-6f6b679f8f-vph5r -n kube-system
+
+c.) kubectl run: Run a Pod directly
+e.g.: kubectl run my-direct-nginx-pod --image=nginx
+
+d.) kubectl create: Create a resource 
+e.g.: 
+kubectl create deployment nginx --image=<ecr-endpoint>/nginx:<tag> # Imperative approach
+kubectl create deployment nginx1 --image=nginx --replicas=2
+
+e.) kubectl apply: Apply a configuration to a resource
+e.g.: kubectl apply -f manifests\demo-deployment.yaml # Declarative Approach
+
+f.) kubectl delete: Delete resources
+e.g.: kubectl delete deployment nginx
+
+
+3.) Kubeconfig:
+---------------
+
+A file that is used to configure access to the Kubernetes clusters is called a kubeconfig file.
+
+Check the C:\Users\<username>\.kube\config file in your Windows Laptop
+
+Reference: sample-kubeconfig\kubeconfig
+
+Key components:
+a.) Clusters: Defines the Minikube cluster, including the server address and the path to the certificate authority.
+b.) Contexts: Specifies how to connect to the cluster, including which user to use and which namespace to use by default.
+c.) current-context: Indicates which context is currently active (in this case, "minikube").
+d.) users: Contains authentication information for connecting to the cluster.
+
+Managing contexts:
+a.) View contexts: kubectl config get-contexts
+b.) Switch contexts: kubectl config use-context minikube
+
+
+4.) understanding the YAML files:
+---------------------------------
+
+YAML Files:
+
+  A - API version: Specifies which version of the Kubernetes API you're using
+      Examples: v1, apps/v1, networking.k8s.io/v1
+  K - Kind: Defines what type of Kubernetes resource you're creating
+      Examples: Pod, Deployment, Service, ConfigMap, etc.
+  M - Metadata: Contains data that helps identify the object
+      name: unique name for the resource
+      labels: key-value pairs for organizing resources
+      namespace: the namespace where resource will be created
+      annotations: additional information about the resource
+  S - Specs: Defines the desired state of the resource
+      Contains all the configuration specific to the Kind
+      Structure varies based on the Kind of resource
+      Most detailed section of the YAML
+
+e.g:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod
+  labels:
+    app: app
+  namespace: default
+spec:
+  containers:
+  - name: myapp-container
+    image: busybox
+    command: ['sh', '-c', 'echo Hello Kubernetes! && sleep 3600']
+
+
+
+5.) Deploy a sample app on Minikube and access the endpoint:
+------------------------------------------------------------
+
+kubectl apply -f manifests\demo-deployment.yaml
+kubectl apply -f manifests\demo-svc.yaml
+kubectl apply -f manifests\demo-svc-np.yaml
+
+To test, open the port (node port specified in the service yaml) in your windows laptop via firewall
+command: New-NetFirewallRule -DisplayName "Open Port <node-port>" -Direction Inbound -LocalPort <node-port> -Protocol TCP -Action Allow
+
+
+Get Minikube Control Plane IP by running: "minikube ip" command
+Browse the Nginx Homepage: http://<Minikube-control-plane-ip>:<node-port>
+
+Cleanup the deployment:
+
+kubectl delete -f manifests\demo-deployment.yaml
+kubectl delete -f manifests\demo-svc.yaml
+kubectl delete -f manifests\demo-svc-np.yaml
+
+Explore before the next session:
+--------------------------------
+
+1.) How does DNS record gets resolved: e.g: How does the domain name https://kubernetes.io will get resolved in your browser
+2.) Install Minikube and run all the manifest files share along with this notes
+3.) Explore Kubernetes Dashboard via minikube
+4.) Explore Kubernetes Impertive vs Declarative commands

@@ -1,0 +1,33 @@
+Minikube Installation on Windows with Hyper-V:
+----------------------------------------------
+
+Note: All the commands mentioned below should be executed from PowerShell Terminal as Administrator
+
+1.) Enable Hyper-V:
+Run: Enable-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V -All
+Restart your computer
+
+2.) Install Chocolatey (package manager for Windows):
+Run: Set-ExecutionPolicy Bypass -Scope Process -Force; [System.Net.ServicePointManager]::SecurityProtocol = [System.Net.ServicePointManager]::SecurityProtocol -bor 3072; iex ((New-Object System.Net.WebClient).DownloadString('https://chocolatey.org/install.ps1'))
+
+3.) Install Minikube using Chocolatey:
+Run: choco install minikube
+
+4.) Install kubectl:
+Run: choco install kubernetes-cli
+
+5.) Start Minikube:
+Run:  minikube start --driver=hyperv --container-runtime=containerd
+
+6.) Verify installation:
+Run: minikube status
+Run: kubectl version
+
+7.) Enable Minikube dashboard:
+Run: minikube dashboard
+
+8.) Verify cluster status:
+Run: kubectl cluster-info
+
+9.) Verify Kubernetes server & client version
+Run: Kubectl version

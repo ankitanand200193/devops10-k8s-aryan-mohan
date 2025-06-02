@@ -1,0 +1,50 @@
+---
+# 1. Pending State Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pending-pod
+spec:
+  containers:
+  - name: pending-container
+    image: nginx
+    resources:
+      requests:
+        memory: 1000Gi  # Unreasonably high request to force pending state
+
+---
+# 2. Running State Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: running-pod
+spec:
+  containers:
+  - name: running-container
+    image: nginx
+
+---
+# 3. Succeeded State Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: succeeded-pod
+spec:
+  restartPolicy: Never
+  containers:
+  - name: succeeded-container
+    image: busybox
+    command: ['sh', '-c', 'echo "Task completed successfully" && sleep 5']
+
+---
+# 4. Failed State Pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: failed-pod
+spec:
+  restartPolicy: Never
+  containers:
+  - name: failed-container
+    image: busybox
+    command: ['sh', '-c', 'echo "Task failed" && exit 1']

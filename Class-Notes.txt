@@ -1,0 +1,277 @@
+Sesssion 1:
+-----------
+
+1.) The "Why Kubernetes?" - Limitations of Docker Alone
+
+
+Docker's Strengths:
+
+    - Dockerfile: A blueprint or script containing instructions to build a Docker image. It specifies everything needed for your application (e.g., an e-commerce website) to run.
+    
+    - Image: A read-only template created from a Dockerfile. It's a build-time construct. Think of it as a packaged application with all its dependencies.
+    
+    - Container: A runnable instance of an image. It's a runtime construct. Think of it as a running process based on the image.
+    
+Challenges with Docker in Production (without an orchestrator):
+    
+    - Multi-Containers: While docker-compose is excellent for defining and running multi-container applications on a single Docker host, it's not designed for managing applications across a cluster of machines.
+
+    - Cluster Management: Coordinating and managing containers across multiple machines.
+
+    - Scaling: Manual Scaling is Tedious and Error-Prone: If your application needs more instances due to increased load, you'd have to manually docker run new containers. If these need to be on different servers, you'd SSH into each, pull the image, run the container, and configure networking. This doesn't scale for dozens or hundreds of instances.
+
+    - Load Balancing: How do you distribute incoming traffic evenly across your multiple container instances? You'd need to manually configure an external load balancer (like Nginx, HAProxy, or a cloud load balancer) and update its configuration every time you add or remove a container instance. This is slow and prone to misconfiguration.
+
+    - Resource Allocation: How do you decide which server to run a new container on to best utilize available CPU and memory? This becomes a manual, complex decision process without an orchestrator intelligently scheduling workloads.
+
+    - No Automated Horizontal Scaling: Docker itself has no built-in mechanism to automatically increase or decrease the number of container instances based on load (e.g., CPU utilization or incoming requests).
+    
+    - Ephemeral Nature & Self-Healing: Docker's restart policies (always, unless-stopped, etc.) can restart a container if the container process itself exits. But what if the container is running, but the application inside it is frozen, in a deadlock, or consistently returning errors? Docker alone doesn't have sophisticated application-level health checks to detect this state and take corrective action
+
+    - Service Discovery: How do containers find and talk to each other when their IPs can change due to restart?
+
+    - Automated Rollouts & Rollbacks: Safely deploying new versions of your application without downtime.
+
+    - Declarative State Management: Defining the desired state of your application (e.g., "I want 5 instances of this web server running version 1.2") and having a system work to achieve and maintain that state.
+
+
+All the above problems are resolved using Container orchestrator like Kubernetes
+
+-----
+
+2.) Managing Applications at Scale using Kubernetes
+
+    - Real world Production Workloads e.g., amazon.com often:
+        
+        - Run on a cluster of servers to handle load and ensure fault tolerance:
+
+            Handling Load (Scalability): A single server, no matter how powerful, has finite resources (CPU, RAM, network bandwidth). As user traffic and data processing needs grow, the application load can exceed the capacity of one machine. A cluster allows the workload to be distributed across multiple servers.
+
+            Ensuring Fault Tolerance (High Availability): Hardware fails, software crashes, networks glitch. If your entire application runs on a single server, any failure on that server means your application goes down. By running on a cluster, if one server (or "node") fails, the others can continue to operate and potentially take over the workload of the failed node, minimizing or preventing downtime.
+        
+        - Are built as a collection of microservices (e.g., amazon.com might have 40+ services like checkout, order, frontend, API gateway):
+
+            Complexity Management: Large, monolithic applications become increasingly difficult to understand, develop, maintain, and update. Breaking them down into smaller, independent services (microservices) makes each part more manageable.
+
+            Independent Deployment & Scaling: Each microservice (e.g., checkout-service, order-service, user-profile-service, product-catalog-service, frontend-ui, api-gateway for an e-commerce site) can be developed, deployed, and scaled independently. If the product-catalog-service needs more resources due to high browsing activity, it can be scaled up without affecting the checkout-service.
+    
+        - These microservices need to communicate with each other (e.g., frontend talks to an API, which talks to a backend service etc.)
+
+            Functional Decomposition: Microservices are individual pieces of a larger puzzle. To fulfill a complete user request or business process, they need to collaborate.
+
+            Data Flow and Orchestration: For example, when a user places an order:
+                - The frontend-ui microservice might send a request to the api-gateway.
+                - The api-gateway might route it to the order-service.
+                - The order-service might need to communicate with the inventory-service (to check stock), the user-profile-service (to get shipping details), and then the payment-service (to process payment).
+
+            This inter-service communication is critical for the application to function as a cohesive whole.
+
+    - How Kubernetes Helps: Kubernetes is specifically designed to address these production workload complexities.
+
+        - For Cluster Management & Resource Distribution:
+            
+            Kubernetes excels at managing a pool of worker nodes (your servers) and distributing your application components (as Pods) across them.
+            
+            It intelligently schedules workloads based on resource availability and defined constraints, ensuring efficient use of the cluster.
+    
+            It handles node failures by automatically attempting to reschedule workloads from a failed node to healthy ones, thus maintaining application availability.
+
+        - For Managing Microservices:
+            
+            Kubernetes is ideally suited for deploying and managing containerized microservices. 
+            
+            Each microservice can be packaged into a container and then managed by Kubernetes constructs like Deployments.
+
+            This allows for easy, independent scaling of each microservice (e.g., "I need 3 instances of order-service but 10 instances of product-catalog-service").
+            
+            It facilitates rolling updates and rollbacks for individual microservices, allowing for zero-downtime deployments.
+
+        - For Inter-Service Communication:
+            
+            Kubernetes provides robust mechanisms for service discovery and internal load balancing through its Service abstraction.
+
+            Each microservice (or set of its Pods) can be exposed via a stable internal IP address and DNS name (e.g., order-service.namespace.svc.cluster.local).
+
+            This means one microservice can reliably find and communicate with another, even as individual Pods (instances of those services) are created, destroyed, or moved across nodes, as their IP addresses are dynamic.
+
+---
+
+3.) Core Kubernetes Concepts for Application Management:
+
+    - In a microservices environment deployed on Kubernetes, each microservice typically runs in its own set of Pods (managed by a Deployment).
+    
+    - A Pod can run multiple containers. This is often used for "sidecar" patterns, where a main application container is accompanied by helper/supporting containers (e.g., for logging, monitoring, proxying).
+
+    - ReplicaSet ensures a specified number of Pod replicas are running at any given time. If you state you need 5 replicas of your application, the ReplicaSet works to maintain 5 running Pods.
+
+    - Hierarchy: You define a Deployment -> which creates and manages a ReplicaSet -> which creates and manages Pods.
+
+    - Labels and Selectors:
+        
+        Labels: Key/value pairs attached to Kubernetes objects (especially Pods).
+        
+        Selectors: Used to identify and select objects (especially pods) based on their labels.
+        
+        This is the core mechanism Kubernetes uses to connect different resources. For example, a Deployment uses selectors to know which Pods it's managing, and a Service uses selectors to know which Pods to send traffic to.
+
+    - Namespace provides a way to divide cluster into virtual sub-cluster creating logical isolation within a physical cluster.
+
+    - In microservice env whenever it is deployed on K8S, each microservices should always run in a separate pod / deployment.
+
+---
+
+4.) Kubernetes Networking: Enabling Communication
+
+Scenario: You have 10 microservices to deploy in a Kubernetes cluster.
+- 2 microservices need to be exposed externally to end-users.
+- All 10 microservices need to talk to each other within the cluster.
+
+How to achieve this?
+
+Discussion:
+
+    - Pod IPs - The Challenge:
+        
+        Every Pod gets its own unique IP address within the cluster (viewable with kubectl get pods -n <namespace> -o wide).
+
+        Technically, microservices (running in Pods) could communicate via these Pod IPs.
+        
+        Problem: Pods are ephemeral. 
+        
+            If a Pod (e.g., one of 3 checkout-MS Pods) dies, its Deployment/ReplicaSet will create a new one. This new Pod will get a new IP address.
+            
+            If other microservices (e.g., order-MS) were trying to communicate with the old IP, that communication would fail. Managing these dynamic IPs for inter-service communication is extremely complex and not done in real-world scenarios.
+
+    - Kubernetes Services - The Solution for Stable Communication:
+            
+            Services provide a stable abstraction (a fixed IP address and DNS name) over a dynamic set of Pods.
+
+            ClusterIP Service (for internal communication): This is the default Service type.
+                - Exposes the Service on an internal IP address, only reachable from within the cluster.
+                - Acts as an internal load balancer, distributing traffic to the Pods matching its selector.
+                - Provides a fixed, stable IP address and a DNS name (e.g., checkout-service.your-namespace.svc.cluster.local) for the service. Microservices use this stable address/name to communicate, regardless of individual Pod IPs changing.
+
+
+Solution:
+
+    - For our scenario: 
+        - The 8 microservices that only need internal communication, and all 10 for inter-service communication, would use ClusterIP Services.
+
+        - The 2 externally exposed microservices could use.:
+            - NodePort Service (for basic external access):
+                - Exposes the Service on a static port (the NodePort, typically in the 30000-32767 range) on each Worker Node's IP address.
+                - Allows external traffic to reach the service via http://<WorkerNodeIP>:<NodePort>.
+    
+                Example: If your cluster has worker nodes with IPs 112.23.14.57 to 112.23.14.61 and your NodePort is 30080, you can access the service via 112.23.14.57:30080, 112.23.14.58:30080, etc.
+
+            - LoadBalancer Service (for robust external access, usually cloud-provider specific):
+                - Exposes the Service externally using a cloud provider's load balancer (e.g., AWS ELB, Azure Load Balancer, GCP Cloud Load Balancer).
+                
+                - The cloud provider provisions an external load balancer.
+
+        For our scenario: Load Balancer service type is often the preferred method for the 2 externally exposed microservices in a cloud environment.
+
+
+    - Another option here is: Ingress (for advanced HTTP/S routing):
+        - Not a Service type, but an API object that manages external access to services, typically HTTP/S.
+        - Provides more advanced features like host-based and path-based routing, SSL/TLS termination.
+        - Requires an Ingress Controller (e.g., AWS Load Balancer Controller, Nginx, Traefik, HAProxy) to be running in the cluster.
+        
+        (details of ingress will be discussed later)
+----------------------------------------------------------------------------------------------------
+
+Sesssion 2:
+-----------
+
+1.) Misconception about Kuberenetes Load Balancer:
+--------------------------------------------------
+
+Clarification: 
+    
+    - There isn't a generic "Kubernetes LoadBalancer" object you create directly. Instead, you create a Service of type: LoadBalancer. Kubernetes then interacts with the underlying cloud infrastructure (if available) to provision an actual load balancer.
+
+    - External Access Flow Simplified:
+        
+        User types https://example.com in his browser.
+
+        Browser queries DNS, which resolves example.com to an IP address. This IP usually points to an external Load Balancer.
+
+        The external Load Balancer forwards traffic into the service running in the Kubernetes cluster 
+
+        The Kubernetes Service inside the cluster then routes the traffic to the correct Pod(s) running the website application.
+
+---
+
+2.) Configuration Management in Kubernetes
+
+The Need: 
+
+    - Application code often has:
+        a.) Business logic.
+        b.) Configuration values (database URLs, API keys, feature flags, environment-specific settings).
+        c.) The same application code needs to run in different environments (dev, QA, UAT, pre-prod, prod) with different configurations.
+
+    - These configuration files fetch the configuration values from:
+        - Env variables
+        - External env specific config file, dev-config.yaml, prod-config.yaml
+        e.g.: environment-dev.ts, environment-prod.ts
+
+Kubernetes Solutions:
+
+    - ConfigMap: 
+        
+        Stores non-confidential configuration data as key-value pairs (e.g., database server URL, DB username, service names to connect to).
+        
+        These can be injected into Pods as environment variables or mounted as files.
+
+    - Secret: 
+    
+        Stores sensitive data like passwords, API tokens, TLS certificates. Data is stored base64 encoded by default (offering mild obfuscation, not strong encryption at rest unless additional cluster security measures are in place). 
+        
+        Secrets can also be injected as environment variables or mounted as files.
+
+Important Note:
+    
+    - A ConfigMap is for injecting configuration data. It cannot directly read files from a Persistent Volume (PV).
+    
+    - Pods are the entities that perform OS-level operations like reading/writing files. 
+    
+    - A Pod can mount a ConfigMap (as files) and also mount a PersistentVolumeClaim (PVC, which uses a PV) to access persistent storage.
+
+-----
+
+3.) Scaling Applications in Kubernetes:
+
+    - Manual Scaling: Directly changing the replicas count in a Deployment manifest (e.g., kubectl scale deployment my-app --replicas=10 or changing the replica count in the deployment ).
+
+    - Autoscaling (Dynamic):
+        
+        -  Horizontal Pod Autoscaler (HPA):
+
+            Automatically scales the number of Pod replicas in a Deployment or ReplicaSet.
+            
+            Scaling decisions are based on observed metrics like CPU utilization, memory usage, or custom metrics.
+
+
+        - Vertical Pod Autoscaler (VPA):
+            
+            Automatically adjusts the CPU and memory resource requests and limits for Pods within a Deployment. (Note: This often involves restarting Pods to apply new resource settings, so it's used more carefully).
+
+
+4.) Sample Use case: End to end scaling (including pods and worker noes in the cluster)
+
+    - Setup:
+        Cluster: 1 control plane, 3 worker nodes.
+        Worker node capacity (example): 2 vCPUs, 8GB RAM, 30GB Storage each.
+        Application APP10 deployed.
+        HPA for APP10: min replicas=2, max replicas=10, target CPU utilization=75%.
+
+    - Event: High traffic hits APP10, average CPU usage across Pods exceeds 75%.
+        HPA Action: HPA starts scaling up Pods from 2 towards 10.
+
+    - Problem: Let's say HPA successfully creates 8 new Pods (total 10), but the 9th and 10th Pods go into a Pending state.
+
+    - Reason: Upon checking Pod events (kubectl describe pod <pending-pod-name>), you find messages like "insufficient cpu" or "insufficient memory." The Kubernetes scheduler cannot find any worker nodes with enough available (unallocated) CPU or memory to place these new Pods. The cluster has run out of allocatable resources on the existing nodes.
+
+    - Cluster scaling Solutions:
+        Add more worker nodes to the cluster (potentially automated by a Cluster Autoscaler and cloud based auto-scaling solution if on-cloud).
