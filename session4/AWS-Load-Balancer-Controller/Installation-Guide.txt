@@ -1,0 +1,56 @@
+# AWS Load Balancer Controller Installation Steps
+
+# Prerequisites:
+# - AWS CLI installed and configured
+# - kubectl installed and configured to interact with your EKS cluster
+# - Helm installed (v3.0 or later)
+
+1.) Create the IAM Policy:
+
+Go to AWS Console -> IAM -> Policies -> Create Policy
+Switch to JSON view and paste the official AWS Load Balancer Controller policy from here: https://raw.githubusercontent.com/kubernetes-sigs/aws-load-balancer-controller/main/docs/install/iam_policy.json
+Name it something like AWSLoadBalancerControllerIAMPolicy
+Review and create the policy
+
+
+2.) Create OpenID Connect Provider for your EKS cluster:
+
+Go to AWS Console -> IAM -> Identity Providers -> Add Provider
+Select OpenID Connect
+Get your OIDC provider URL from EKS cluster (EKS Console -> Your Cluster -> Details -> OpenID Connect provider URL)
+For Audience, use sts.amazonaws.com
+Verify thumbprint and create provider
+
+
+3.) Create IAM Role:
+
+Go to AWS Console -> IAM -> Roles -> Create Role
+Select "Web Identity" as the trusted entity
+Select the OIDC Provider you just created
+For Audience, select sts.amazonaws.com
+Update the following condition in the trust relationship inside the StringEquals section with below content, and substitute the ${OIDC_PROVIDER} with the OIDC provider copied from EKS details page:
+"StringEquals": {
+  "${OIDC_PROVIDER}:sub": "system:serviceaccount:kube-system:aws-load-balancer-controller",
+  ${OIDC_PROVIDER}:aud": "sts.amazonaws.com"
+}
+Attach the AWSLoadBalancerControllerIAMPolicy you created earlier
+Name the role (e.g., AWSLoadBalancerControllerRole)
+
+
+# Additional Note: I prefer doing above steps 1, 2 & 3 in a different way via terraform:
+- For Step 1: check line 9-13 of session2\EKS\tf-code\modules\eks\eks-cluster.tf
+- For Step 2 & 3: check line 95-134 of session2\EKS\tf-code\modules\eks\iam.tf
+This could be done in which ever way you prefer
+
+# Step 4: Add the EKS chart repo to Helm
+helm repo add eks https://aws.github.io/eks-charts
+helm repo update
+
+# Step 5: Install the AWS Load Balancer Controller
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=<your-cluster-name> --set serviceAccount.create=true --set serviceAccount.name=aws-load-balancer-controller --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn="<arn-of-aws-role-created-above-for-aws-lbc>" --set region=<aws-region> --set vpcId="<vpc-id-of-eks>" --set enableWaf="false" --set enableWafv2="false"
+
+e.g.:
+helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller -n kube-system --set clusterName=demo-01 --set serviceAccount.create=true --set serviceAccount.name=aws-load-balancer-controller --set serviceAccount.annotations.eks\.amazonaws\.com/role-arn="arn:aws:iam::975050024946:role/aws-lbc-demo-01" --set region=ap-southeast-1 --set vpcId="vpc-0a5d0b90e978dd78d " --set enableWaf="false" --set enableWafv2="false"
+
+# Step 6: Verify the installation
+kubectl get deployment -n kube-system aws-load-balancer-controller

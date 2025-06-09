@@ -1,0 +1,27 @@
+# Steps to deploy Metrics Server on a Kubernetes cluster:
+
+1. Download the Metrics Server manifest:
+   wget https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
+   # Placed a downloaded file in the same directory for reference
+   
+2. Apply the manifest:
+   kubectl apply -f metrics-server\components.yaml
+
+
+2.b. For Minikube:
+
+minikube addons enable metrics-server
+
+3. Verify the deployment:
+   kubectl get deployment metrics-server -n kube-system
+
+4. Check if the Metrics Server is running:
+   kubectl get pods -n kube-system | grep metrics-server
+
+# Note: In some environments (like minikube), you might need to enable the metrics-server addon:
+# minikube addons enable metrics-server
+
+# For troubleshooting, you can check the Metrics Server logs:
+# kubectl logs -n kube-system -l k8s-app=metrics-server
+
+# Remember to adjust any cluster-specific settings as needed.

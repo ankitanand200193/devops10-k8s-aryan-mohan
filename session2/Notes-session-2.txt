@@ -1,5 +1,5 @@
-5.) Detailed view into Kubernetes Objects:
-------------------------------------------
+Detailed view into Kubernetes Objects:
+--------------------------------------
 
 Understand Pods:
 ----------------
@@ -121,4 +121,4 @@ handson:
     - sample: manifests\pcatalog-secret-string-data-demo.yaml
     - sample: manifests\pcatalog-secret-data-demo.yaml
 - Apply them
-- Check their accesibility in the Pods which are created via the deployment
+- Check their accessibility in the Pods which are created via the deployment

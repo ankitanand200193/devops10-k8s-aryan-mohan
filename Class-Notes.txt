@@ -1,4 +1,4 @@
-Sesssion 1:
+Session 1:
 -----------
 
 1.) The "Why Kubernetes?" - Limitations of Docker Alone
@@ -94,7 +94,7 @@ All the above problems are resolved using Container orchestrator like Kubernetes
 
             This means one microservice can reliably find and communicate with another, even as individual Pods (instances of those services) are created, destroyed, or moved across nodes, as their IP addresses are dynamic.
 
----
+-----
 
 3.) Core Kubernetes Concepts for Application Management:
 
@@ -118,7 +118,7 @@ All the above problems are resolved using Container orchestrator like Kubernetes
 
     - In microservice env whenever it is deployed on K8S, each microservices should always run in a separate pod / deployment.
 
----
+-----
 
 4.) Kubernetes Networking: Enabling Communication
 
@@ -178,12 +178,13 @@ Solution:
         - Requires an Ingress Controller (e.g., AWS Load Balancer Controller, Nginx, Traefik, HAProxy) to be running in the cluster.
         
         (details of ingress will be discussed later)
+		
 ----------------------------------------------------------------------------------------------------
 
-Sesssion 2:
+Session 2:
 -----------
 
-1.) Misconception about Kuberenetes Load Balancer:
+1.) Misconception about Kubernetes Load Balancer:
 --------------------------------------------------
 
 Clarification: 
@@ -200,7 +201,7 @@ Clarification:
 
         The Kubernetes Service inside the cluster then routes the traffic to the correct Pod(s) running the website application.
 
----
+-----
 
 2.) Configuration Management in Kubernetes
 
@@ -275,3 +276,152 @@ Important Note:
 
     - Cluster scaling Solutions:
         Add more worker nodes to the cluster (potentially automated by a Cluster Autoscaler and cloud based auto-scaling solution if on-cloud).
+		
+----------------------------------------------------------------------------------------------------
+	
+Session 3:
+-----------
+
+1.) Self-Managed Kubernetes Cluster Architecture
+
+	- When you're not using a managed Kubernetes service like EKS, GKE, or AKS, you are responsible for setting up and maintaining all components of the Kubernetes cluster.
+
+	- Control Plane (Master Nodes):
+		The brain of the Kubernetes cluster. It makes decisions about the cluster (e.g., scheduling) and detects and responds to cluster events. For production and critical use cases, you may also run multiple control plane nodes / servers for high availability.
+		
+		- Key Components (running on Control Plane nodes):
+			- kube-apiserver: The frontend for the Kubernetes control plane. It exposes the Kubernetes API. All interactions with the cluster (from kubectl, other components, or external tools) go through the API server.
+
+			- etcd: A consistent and highly-available key-value store used as Kubernetes backing store for all cluster data (configurations, state, secrets, etc.). This is critical and losing etcd data means losing the state of your cluster.
+
+			- kube-scheduler: Watches for newly created Pods that have no node assigned and selects a node for them to run on based on resource requirements, policies, and other specifications, etc.
+
+			- controller-manager: Runs controller processes. Controllers are control loops that watch the shared state of the cluster through the apiserver and make changes attempting to move the current state towards the desired state. 
+				
+				- Examples include:
+					- Node Controller: Responsible for noticing and responding when nodes go down.
+					 
+					- Replication Controller (and ReplicaSet Controller via Deployments): Responsible for maintaining the correct number of pods for every replication controller object in the system.
+
+					- Endpoints Controller: Populates the Endpoints object (i.e., joins Services & Pods).
+			
+			- cloud-controller-manager (Optional, for cloud provider integration): Embeds cloud-specific control logic. It allows you to link your cluster into your cloud provider's API, and separates out the components that interact with that cloud platform from components that just interact with your cluster. (e.g., managing load balancers, storage volumes). We will not need this in our self managed cluster.
+			
+	- Worker Nodes:
+		These are the machines (VMs or physical servers) where your actual application containers (in Pods) run.
+
+		- Key Components (running on each Worker Node):
+			- kubelet: An agent that runs on each node in the cluster. It makes sure that containers are running in a Pod as described by their PodSpecs received from the API server running on the Control Plane. It registers the node with the apiserver.
+
+			- kube-proxy: kube-proxy makes Kubernetes Services (like ClusterIP) work by creating network rules on every node. These rules ensure that when you try to reach a Service's stable IP address, your request gets directed to one of the actual, healthy Pods providing that service.
+			
+			- Container Runtime Interface (CRI): The software responsible for running containers. Kubernetes is CRI-compatible, meaning you can use various container runtimes.
+			Examples: containerd, Docker (via dockershim - being deprecated as a direct kubelet integration), CRI-O.
+
+			- Container Networking Interface (CNI) Plugin: CNI plugins give each Pod its own IP address and set up the network paths so Pods can talk directly to each other, even across different machines. They are essential for basic Pod-to-Pod communication.
+
+-----
+
+2.) Infrastructure Setup for Self-Managed Cluster:
+	
+	- Virtual Machines (VMs): You will typically provision VMs. 
+		For example:
+			- 1 or 3 VMs for the Control Plane (odd number for etcd quorum).
+			- At least 2 or more VMs for Worker Nodes for basic redundancy and capacity.
+
+	- Networking:
+
+		- VPC / VNet / Intranet: All VMs (control plane and worker nodes) must reside within the same private network (e.g., AWS VPC, Azure VNet, or a corporate intranet) allowing them to communicate with each other.
+
+		- Security Groups (SG) / Network Security Groups (NSG) / Firewalls: These are crucial cloud (or on-prem) constructs that act as virtual firewalls for your VMs. You need to configure rules to:
+			- Allow control plane components to talk to each other (especially etcd).
+			- Allow worker nodes (kubelet, kube-proxy) to communicate with the kube-apiserver on the control plane.
+			- Allow inter-node communication for the CNI plugin (Pod-to-Pod networking overlay).
+			- Allow external access to the kube-apiserver for kubectl (usually restricted to specific IPs).
+			- Allow inbound traffic for services exposed via NodePort or LoadBalancer.
+
+	- Installation of Kubernetes Components:
+		
+		- kubeadm: A command-line tool that provides kubeadm init and kubeadm join as best-practice "fast paths" for creating Kubernetes clusters. It bootstraps the control plane and worker nodes by installing and configuring the necessary components. This is the most common method for self-managed clusters.
+
+		- Manifests / Helm: While core Kubernetes components are typically installed by tools like kubeadm or by cloud providers, you use YAML manifests or Helm charts to deploy applications and add-ons (like monitoring tools, ingress controllers, or CNI plugins if not bundled) onto your running cluster.
+
+----------------------------------------------------------------------------------------------------
+
+Session 4:
+-----------
+
+1.) Networking Layers: L4 vs L7 Load Balancing
+
+	- Understanding the difference is key to choosing the right type of Kubernetes Service or Ingress.
+		- Layer 4 (Transport Layer - TCP/UDP):
+			- Operation: Works at the TCP or UDP protocol level. It makes routing decisions based on source/destination IP addresses and ports.
+			- Visibility: It does not inspect the actual content (payload) of the network packets. It doesn't understand HTTP headers, paths, or cookies.
+			
+			- Use Cases: 
+				- Simple, fast load balancing for any TCP/UDP based service. Good for high throughput, low latency scenarios where content inspection is not needed.
+
+			- Kubernetes/Cloud Examples:
+				- Kubernetes Service of type LoadBalancer (when provisioned by a cloud provider like Azure Standard Load Balancer or AWS Network Load Balancer (NLB)).
+				- kube-proxy itself in IPVS mode or iptables mode largely operates at L4 for Service routing.
+
+		- Layer 7 (Application Layer - HTTP/HTTPS, gRPC, etc.):
+			- Operation: Works at the application protocol level (e.g., HTTP). It can inspect the content of the messages.
+			- Visibility: Can read and understand application-level data like:
+				- HTTP Host headers (e.g., Host: flipkart.com)
+				- HTTP Paths (e.g., /product, /user/profile)
+				- HTTP Methods (GET, POST)
+				- Cookies, Query parameters
+				- Other headers
+
+			- Use Cases: 
+				- Content-based routing / Path-based routing: Directing traffic to different backend services based on the URL path (e.g., example.com/api/* to API service, example.com/ui/* to UI service).
+				- Host-based routing: Directing traffic based on the domain name (e.g., app1.example.com to app1 service, app2.example.com to app2 service).
+				
+			- Kubernetes/Cloud Examples:
+				- Kubernetes Ingress controllers (Nginx Ingress, Traefik, Istio Gateway).
+				- Cloud-native L7 Load Balancers like AWS Application Load Balancer (ALB), Azure Application Gateway, Google Cloud HTTP(S) Load Balancer.
+
+2.) Pods in EKS Accessing AWS Services (The IRSA Deep Dive)
+
+	- If your Pods running inside an Amazon EKS (Elastic Kubernetes Service) cluster need to access AWS services (like S3, DynamoDB, SQS, or even make API calls to create ALBs via the AWS Load Balancer Controller), they need AWS credentials.
+
+	- Option 1: Worker Node IAM Role (The Less Secure, Legacy Approach)
+		- How it works: You create an IAM Role and attach it to the EKS Cluster Node Group that serve as your EKS worker nodes. This role has policies granting permissions to various AWS services.
+		- The kubelet on the worker node (and thus any Pod running on that node) can then inherit these permissions by querying the EC2 instance metadata service.
+
+		- Drawbacks:
+			- Overly Permissive: All Pods running on a particular node get all the permissions granted by the node's IAM role. This violates the principle of least privilege. A compromised Pod could potentially abuse all permissions of the node.
+			- Difficult to Audit: Hard to track which specific Pod/application used which permission.
+
+	- Option 2: IRSA - IAM Roles for Service Accounts (The Preferred, Secure Approach)
+		- IRSA allows you to associate an AWS IAM Role directly with a Kubernetes Service Account. Pods that use this Service Account can then assume the associated IAM Role and get fine-grained, specific permissions.
+
+		- Core Concepts & Setup Flow:
+			- EKS Cluster OIDC Provider:
+				(check the AWS Load Balancer Controller installation Guide to perform the steps, read this for the explanation)
+				- Your EKS cluster has an OpenID Connect (OIDC) issuer URL. This URL acts as an identity provider (IdP).
+				- You need to enable this in your EKS cluster if not already done. This OIDC provider issues tokens that AWS STS (Security Token Service) can verify.
+				- Find it via EKS console.
+				- Create an IAM OIDC Identity Provider in AWS IAM
+				- Create an IAM Role with a Trust Policy for the OIDC Provider, this is the IAM Role your Pods will assume.
+				- Permissions Policy: Attach policies that grant the specific, minimal permissions your application (running in the Pod) needs (e.g., s3:GetObject on a specific bucket).
+				- Trust Relationship (Crucial Part - "Web Identity Trusted Entity"):
+					- The "Principal" in the trust policy will be the ARN of the OIDC provider created above
+					- It uses a Condition to scope down which Kubernetes Service Account can assume this role, 
+							- The :sub condition ensures only tokens issued for that specific Service Account can assume the role.
+							- The :aud condition ensures the token was intended for STS.
+				- Create a Kubernetes Service Account (KSA):
+					- If it doesn't exist, create it in your desired namespace:
+						- kubectl create serviceaccount YOUR_K8S_SERVICE_ACCOUNT_NAME -n YOUR_NAMESPACE
+				- Annotate the Kubernetes Service Account:
+					- Link the KSA to the IAM Role by adding an annotation:
+						- kubectl annotate serviceaccount YOUR_K8S_SERVICE_ACCOUNT_NAME -n YOUR_NAMESPACE eks.amazonaws.com/role-arn=arn:aws:iam::ACCOUNT_ID:role/YOUR_IAM_ROLE_NAME
+				- Configure Your Pod/Deployment to Use the Service Account by specifying 
+					- serviceAccountName: YOUR_K8S_SERVICE_ACCOUNT_NAME # This should be done in the deployment manifest file
+
+		- How IRSA is Used in AWS Load Balancer Controller:
+			- You create an IAM Role (e.g., AmazonEKSLoadBalancerControllerRole) with the necessary policies (AWS provides a recommended policy).
+			- You configure its trust policy to allow the Service Account used by the AWS Load Balancer Controller Pods to assume this role (following the IRSA trust policy structure).
+			- When you deploy the AWS Load Balancer Controller (e.g., via Helm), you specify the Service Account name, and this Service Account is created and then annotated with the ARN of AmazonEKSLoadBalancerControllerRole.
+			- The controller Pods then use IRSA to obtain temporary AWS credentials, allowing them to make API calls to AWS to manage ALBs/NLBs on your behalf.

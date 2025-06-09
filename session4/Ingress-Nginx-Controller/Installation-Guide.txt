@@ -1,0 +1,19 @@
+# Ingress Nginx Controller Installation Steps ON AWS:
+-----------------------------------------------------
+
+In AWS, we use a Network load balancer (NLB) to expose the Ingress-Nginx Controller behind a Service of Type=LoadBalancer.
+
+This section explains how to do that on AWS using an NLB.
+
+1.) Download the deploy.yaml template
+wget https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.12.0-beta.0/deploy/static/provider/aws/deploy.yaml
+
+Kept the downloaded file here for reference
+
+2.) Deploy this manifest file:
+
+kubectl apply -f deploy.yaml
+
+3.) Verify the installation
+kubectl get pods -n ingress-nginx // The status should be completed
+kubectl get services -n ingress-nginx // should print the AWS NLB DNS in the external IP

@@ -1,0 +1,108 @@
+<mxfile host="app.diagrams.net" agent="Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/137.0.0.0 Safari/537.36" version="27.1.4">
+  <diagram name="Page-1" id="ds5lReaJzdb_WGklA69d">
+    <mxGraphModel dx="1245" dy="1586" grid="1" gridSize="10" guides="1" tooltips="1" connect="1" arrows="1" fold="1" page="1" pageScale="1" pageWidth="827" pageHeight="1169" math="0" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-13" value="" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="90" y="-10" width="950" height="440" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-1" value="" style="rounded=1;whiteSpace=wrap;html=1;arcSize=18;" vertex="1" parent="1">
+          <mxGeometry x="270" y="80" width="730" height="300" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-19" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="630" y="236" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-17" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="511" y="242" width="100" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-7" value="" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="370" y="242" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-2" value="K8S Cl&lt;span style=&quot;background-color: transparent; color: light-dark(rgb(0, 0, 0), rgb(255, 255, 255));&quot;&gt;uster&lt;/span&gt;" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="445" y="80.2" width="120" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-3" value="" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;kubernetesLabel=1;prIcon=pod" vertex="1" parent="1">
+          <mxGeometry x="414" y="248" width="50" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-4" value="" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;kubernetesLabel=1;prIcon=pod" vertex="1" parent="1">
+          <mxGeometry x="530" y="248" width="50" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-5" value="" style="aspect=fixed;sketch=0;html=1;dashed=0;whitespace=wrap;verticalLabelPosition=bottom;verticalAlign=top;fillColor=#2875E2;strokeColor=#ffffff;points=[[0.005,0.63,0],[0.1,0.2,0],[0.9,0.2,0],[0.5,0,0],[0.995,0.63,0],[0.72,0.99,0],[0.5,1,0],[0.28,0.99,0]];shape=mxgraph.kubernetes.icon2;kubernetesLabel=1;prIcon=pod" vertex="1" parent="1">
+          <mxGeometry x="660" y="242" width="50" height="48" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-12" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="2-JfO3k-ee9tkNi8z5oQ-6" target="2-JfO3k-ee9tkNi8z5oQ-7">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-6" value="&lt;div&gt;Service Type:&amp;nbsp;&lt;/div&gt;&lt;div&gt;ClusterIP&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/containers/Kubernetes_Services.svg;" vertex="1" parent="1">
+          <mxGeometry x="290" y="100" width="45.33" height="40" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-8" value="FrontEnd Pod" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="370" y="210" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-10" value="Actor" style="shape=umlActor;verticalLabelPosition=bottom;verticalAlign=top;html=1;outlineConnect=0;" vertex="1" parent="1">
+          <mxGeometry x="50" y="140" width="30" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-14" value="AWS" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="90" y="-10" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-18" value="API Pod" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="525" y="212" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-20" value="Backend Pod" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="655" y="206" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-22" value="&lt;div&gt;Service Type:&amp;nbsp;&lt;/div&gt;&lt;div&gt;ClusterIP&lt;/div&gt;" style="image;aspect=fixed;html=1;points=[];align=center;fontSize=12;image=img/lib/azure2/containers/Kubernetes_Services.svg;" vertex="1" parent="1">
+          <mxGeometry x="464" y="110.2" width="45.11" height="39.8" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-25" value="" style="points=[];aspect=fixed;html=1;align=center;shadow=0;dashed=0;fillColor=#FF6A00;strokeColor=none;shape=mxgraph.alibaba_cloud.alb_application_load_balancer_01;" vertex="1" parent="1">
+          <mxGeometry x="335" y="24" width="47.400000000000006" height="40.2" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-26" value="NLB" style="text;html=1;align=center;verticalAlign=middle;whiteSpace=wrap;rounded=0;" vertex="1" parent="1">
+          <mxGeometry x="361" y="28" width="60" height="30" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-30" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;startArrow=classic;startFill=1;" edge="1" parent="1" source="2-JfO3k-ee9tkNi8z5oQ-27" target="2-JfO3k-ee9tkNi8z5oQ-26">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="865" y="40" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-32" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.5;entryY=0;entryDx=0;entryDy=0;" edge="1" parent="1" source="2-JfO3k-ee9tkNi8z5oQ-27" target="2-JfO3k-ee9tkNi8z5oQ-28">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-27" value="Ingress Controller&lt;div&gt;- Ingress Nginx Controller &lt;b&gt;(Layer 7 Web Servers)&lt;/b&gt;&lt;/div&gt;&lt;div&gt;- Traefik Ingress Controller&lt;/div&gt;&lt;div&gt;- HA Proxy Ingress Controller&lt;/div&gt;&lt;div&gt;- AWS Load Balancer Controller&lt;/div&gt;&lt;div&gt;- AGIC&lt;/div&gt;" style="rounded=0;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="780" y="100" width="170" height="124.95" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-33" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;" edge="1" parent="1" source="2-JfO3k-ee9tkNi8z5oQ-28" target="2-JfO3k-ee9tkNi8z5oQ-6">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="313" y="330" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-28" value="Ingress Resource&lt;div&gt;- Routing Paths&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;" vertex="1" parent="1">
+          <mxGeometry x="805" y="280" width="120" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-31" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.267;entryY=0.605;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1">
+          <mxGeometry relative="1" as="geometry">
+            <mxPoint x="65" y="132" as="sourcePoint" />
+            <mxPoint x="339.6558" y="40.32099999999991" as="targetPoint" />
+            <Array as="points">
+              <mxPoint x="65" y="40" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+        <mxCell id="2-JfO3k-ee9tkNi8z5oQ-34" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;entryX=0.953;entryY=0.757;entryDx=0;entryDy=0;entryPerimeter=0;" edge="1" parent="1" source="2-JfO3k-ee9tkNi8z5oQ-28" target="2-JfO3k-ee9tkNi8z5oQ-22">
+          <mxGeometry relative="1" as="geometry">
+            <Array as="points">
+              <mxPoint x="770" y="310" />
+              <mxPoint x="770" y="180" />
+              <mxPoint x="507" y="180" />
+            </Array>
+          </mxGeometry>
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

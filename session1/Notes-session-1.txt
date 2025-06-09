@@ -42,8 +42,8 @@ Hands-on Lab:
 -------------
 
 
-1.) Minikube:
--------------
+Minikube:
+---------
 
 Minikube: Minikube is a tool that lets you run Kubernetes locally, creating a single-node cluster on your machine.
 
@@ -55,8 +55,8 @@ Task:
         Explain the usage of all the pods in the output of the above command
 
 
-2.) Navigating the Kubernetes CLI (kubectl) commands:
------------------------------------------------------
+Navigating the Kubernetes CLI (kubectl) commands:
+-------------------------------------------------
 
 kubectl is the command-line tool for interacting with Kubernetes clusters.
 
@@ -82,8 +82,8 @@ f.) kubectl delete: Delete resources
 e.g.: kubectl delete deployment nginx
 
 
-3.) Kubeconfig:
----------------
+Kubeconfig:
+-----------
 
 A file that is used to configure access to the Kubernetes clusters is called a kubeconfig file.
 
@@ -102,8 +102,8 @@ a.) View contexts: kubectl config get-contexts
 b.) Switch contexts: kubectl config use-context minikube
 
 
-4.) understanding the YAML files:
----------------------------------
+Understanding the YAML files:
+------------------------------
 
 YAML Files:
 
@@ -138,8 +138,8 @@ spec:
 
 
 
-5.) Deploy a sample app on Minikube and access the endpoint:
-------------------------------------------------------------
+Deploy a sample app on Minikube and access the endpoint:
+--------------------------------------------------------
 
 kubectl apply -f manifests\demo-deployment.yaml
 kubectl apply -f manifests\demo-svc.yaml

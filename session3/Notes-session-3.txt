@@ -1,0 +1,191 @@
+---------------------------
+Kubernetes Training Program
+---------------------------
+
+-------------
+Session 3:
+-------------
+
+
+Understanding the Kubernetes Horizontal Pod Autoscaling:
+---------------------------------------------------------
+
+Pre-requisite: Deployment of Metrics server is required for HPA to function. Metrics server helps to analyse Node and Pod Level CPU and Memory status.
+    - Steps to install metrics server: metrics-server\Installation-Guide.txt
+    - Run below command to get the pods and nodes metrices:
+        kubectl top pods -A
+        kubectl top node
+
+
+HPA automatically scales the number of pods in a deployment or StatefulSet based on observed CPU utilization or memory utilization or any other custom metrics.
+
+Key features:
+- Supports both resource-based (CPU/memory) and custom/external metrics for scaling decisions.
+- Allows setting of minimum and maximum number of replicas
+
+handson:
+- Apply the deployment and the service manifests:
+    - manifests\pcatalog-deployment-demo.yaml
+    - manifests\pcatalog-service-demo.yaml
+- check the manifest files
+    - sample: manifests\pcatalog-hpa-demo.yaml
+- Apply it
+- Watch the HPA from 1st terminal // kubectl get hpa product-catalog-hpa-demo -w
+- Watch the pods from 2nd terminal // kubectl get pods -l app=product-catalog -w
+- Generate load from 3rd terminal
+    - First, get the service IP
+        - kubectl get service product-catalog-service -o jsonpath='{.spec.clusterIP}'
+    - Exec into any pod and then run a loop to send requests and increase CPU load:
+        - kubectl get pods
+        - kubectl exec -it <po-name-from-above> -- bash
+        - Run:
+            while true; do curl -s -o /dev/null -w "%{http_code}" http://<SERVICE_IP_OBTAINED_ABOVE>;done
+
+            while true; do curl -s -o /dev/null -w "%{http_code}" http://10.109.197.76;done
+- Switch between different terminals to see the CPU percentage increasing and subesequent scaling of Pods
+- Stop the curl command in the 3rd terminal to stop the load
+- Again check the CPU percentage and the pods getting scaled back down
+- Delete HPA
+
+
+Namespace:
+----------
+
+Namespaces in Kubernetes are a way to divide cluster resources between multiple users, projects or environments. They help to organize and isolate resources within a cluster.
+
+
+Key features:
+Namespaces allow you to create multiple virtual clusters within the same physical cluster for multi-tenant environments
+Implement resource quotas and limit resource usage per namespace.
+Enables to work with multiple environments within a cluster (dev, test, prod)
+Access control across multiple teams
+
+Default Namespaces: Kubernetes starts with four initial namespaces:
+default: For resources with no other namespace
+kube-system: For objects created by or for the Kubernetes system
+kube-public: Created automatically and readable by all users
+kube-node-lease: Special namespace that plays a crucial role in the node heartbeat mechanism to control plane
+
+handson:
+- Create namespace // kubectl create ns hvd or kubectl apply -f manifests\namespace-demo.yaml
+- Setting the Namespace Preference // kubectl config set-context --current --namespace=kube-system
+- View existing namespaces // kubectl get ns
+- Describe namespace // kubectl describe ns hvd
+- Viewing Resources in a Namespace // kubectl get pods --namespace=hvd or kubectl get pods -n hvd
+- Deleting a namespace (Run with responsibility) // kubectl delete ns hvd
+
+
+Important Info:
+
+Some Namespace scoped objects: Pods, ReplicaSets, Deployments, Services, ConfigMaps, Secrets, Ingresses, StatefulSets, DaemonSets, HorizontalPodAutoscalers, PersistentVolumeClaims etc.
+
+Some cluster Scoped Kubernetes Objects: Nodes, PersistentVolumes, StorageClasses, CSIDrivers etc.
+
+
+Installing a self managed Kubernetes Cluster:
+-----------------------------------------------
+
+Steps:
+Pre-requisite for provisioning the Kubernetes cluster on AWS / Azure
+- Make sure to open following ports in the security group attached to the EC2 instances / VMs 
+#6443 from 0.0.0.0/0
+#2379 - 2380 from same-security-group-id
+#10250 - 10252 from same-security-group-id
+
+
+a.) Provision 3 virtual machines which would be a part of your cluster
+    - I have used terraform to provision 3 EC2 server on aws
+    - Reference scripts: Self-Managed-Kubernetes-Cluster\tf-code
+
+b.) After the EC2 instances are provisioned, access them (ssh using your pem file)
+
+c.) Use the k8s-master.sh script to provision the master node
+    - Reference script: Self-Managed-Kuberenetes-Cluster\shell-scripts\k8s-master.sh
+
+d.) Use the k8s-worker.sh script to provision the worker node
+    - Reference script: Self-Managed-Kuberenetes-Cluster\shell-scripts\k8s-worker.sh
+
+e.) Merge the Kubeconfig file to your local workstation (which will mostly be your laptop)
+    - Run below mentioned commands preferable using git bash in windows laptop:
+        - cd /c/Users/<your-username>/.kube
+        - scp username@master_node_ip:/etc/kubernetes/admin.conf self-managed-cluster-config
+        - KUBECONFIG=/c/Users/<your-username>/.kube/config:/c/Users/<your-username>/.kube/self-managed-cluster-config kubectl config view --flatten > config-merged
+        - mv config-merged config
+
+f.) Check and swicth the context and further check the cluster status:
+    - Run below command:
+        - kubectl config get-contexts
+        - kubectl config use-context kubernetes-admin@kubernetes
+        - kubectl get pods -A 
+        - kubectl get cs // check control plane components are working fine or not
+
+
+Question.) How you can run the pod without Scheduler?
+
+Ans:
+
+Running a pod without the scheduler involves using static pods or manually specifying the node where the pod should run. 
+
+Here are two main approaches:
+
+a.) Using Static Pods:
+
+Static pods are managed directly by the kubelet on a specific node, without the involvement of the API server or the scheduler.
+
+When you run kubeadm init, it sets up the control plane components of a Kubernetes cluster. 
+
+Here's an overview of how the various components are started and where you can find their manifest files:
+
+Manifest file location:
+The static Pod manifest files for the control plane components are typically located in the /etc/kubernetes/manifests/ directory on the control plane node.
+
+Component startup process:
+kubeadm generates the necessary manifest files for core components.
+These manifests are placed in the /etc/kubernetes/manifests/ directory.
+The kubelet, which should already be running on the node, watches this directory.
+When the kubelet detects new or changed manifests, it creates static Pods based on these manifests.
+
+b.) Pod Specification with NodeName:
+
+e.g.:
+apiVersion: v1
+kind: Pod
+metadata:
+  name: nginx-on-specific-node
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+  nodeName: ip-172-31-31-253
+
+
+Important points to remember:
+- Static pods are created and managed by the kubelet, not the API server.
+- Pods with nodeName are still managed by the API server but bypass the scheduling process.
+- Both methods limit the flexibility and automatic rescheduling capabilities of Kubernetes.
+- These approaches are typically used for system pods or in specific scenarios where you need precise control over pod placement.
+
+
+Installing Elastic Kubernetes Service (EKS) Cluster on AWS:
+-------------------------------------------------------------
+
+Steps:
+
+a.) Provision the EKS cluster manually or via the Terraform code // Request everyone to create the cluster manually
+    - I have used terraform to provision the cluster on aws
+    - Reference scripts: EKS\tf-code
+    - This script will provision the EKS cluster and associate the Node Group with it
+    - So, basically a running cluster is available for us
+
+
+
+b.) you should have awscli installed on your system to work with EKS
+    - Run below command to install it:
+    - msiexec.exe /i https://awscli.amazonaws.com/AWSCLIV2.msi
+    - aws --version // to check the version
+
+b.) Fetch EKS Kubeconfig file to your local workstation
+    - Run below mentioned command from powershell
+        - aws sts get-caller-identity // To verify your current user access on AWS
+        - aws eks update-kubeconfig --region <region-code> --name <cluster-name>
+        - kubectl get svc // To test the configuration
