@@ -1,0 +1,118 @@
+HELM:
+----------
+
+Helm is a package manager for Kubernetes. It allows you to define, install, and upgrade even the most complex Kubernetes applications.
+
+from our exp:
+
+We installed AWS Load Balancer Controller:
+
+- We executed a commands and the controller was up and running with following objects in Kubernetes:
+    - deployments
+    - services
+    - configmaps
+    - secrets
+    - rbac - clusterrole, clusterrolebindings, serviceaccounts
+
+Benefits of using Helm:
+- Simplifies application deployment
+- Facilitates sharing and reuse of Kubernetes applications
+- Enables version control of deployments
+
+Key Concepts:
+Charts: The chart is a bundle of information (Kubernetes manifest files) necessary to deploy an end to end application on Kubernetes.
+Releases: Instances of a chart running in a Kubernetes cluster
+Repositories: Places where charts can be placed, collected and shared
+
+For installation follow: https://helm.sh/docs/intro/install/
+
+Helm Architecture:
+    a.) Helm CLI: The command-line client that sends commands to the Kubernetes API server.
+    b.) Charts: The Helm packaging format. A chart is a collection of files that describe a related set of Kubernetes resources.
+    c.) Helm Library: The underlying code that implements Helm's functionality.
+
+
+Basic Helm Commands:
+    - helm install: Install a chart
+    - helm upgrade: Upgrade a release
+    - helm rollback: Roll back a release
+    - helm uninstall: Uninstall a release
+    - helm list: List releases
+    - helm repo: Manage chart repositories
+    - helm search: Search for charts
+    - helm history: Show the history of release
+
+Creating and Publishing a Chart
+
+handson:
+    a.) Create a Simple Web Application Chart 
+        - Create a new chart
+            helm create simple-webapp
+        - Edit simple-webapp/values.yaml
+        - Edit simple-webapp/templates/deployment.yaml
+        - Package the chart:
+            helm package simple-webapp
+        - Commit & Push the chart to your git repo
+
+
+Using a Chart
+
+    a.) Install the chart created by ourself above
+
+        - Clone or download the chart to your local from the Git repository
+        - Go to the folder where the chart exists
+        - Install the chart:
+            helm upgrade --install <chart-name> ./<chart-path> --set <run-time-override> -f values.yaml
+
+            e.g.:
+            helm upgrade --install my-webapp ./simple-webapp --set replicaCount=3 -f ./simple-webapp/values.dev.yaml
+
+            helm upgrade --install my-webapp ./simple-webapp --set replicaCount=3 -f ./simple-webapp/values.qa.yaml
+
+        - Verify the installation:
+            kubectl get pods
+            kubectl get services
+
+        - Upgrade the release:
+            - Change any setting in the values.dev.yaml
+            - perform upgrade:
+                helm upgrade --install my-webapp ./simple-webapp --set replicaCount=3 -f ./simple-webapp/values.dev.yaml
+
+        - Perform a rollback:
+            helm rollback my-webapp 1
+
+    b.) Installing and Configuring a Public available chart. e.g. Bitnami Mysql Chart
+
+        - Add the Bitnami repository:
+            helm repo add bitnami https://charts.bitnami.com/bitnami
+
+        - Update repositories:
+            helm repo update
+
+        - Download the MySQL chart locally for reference to work and update the values.yaml file:
+            helm pull bitnami/mysql --untar --untardir ./bitnami-mysql
+
+        - Install MySQL with custom configuration:
+            helm upgrade --install my-mysql bitnami/mysql --set auth.rootPassword=secretpassword --set primary.persistence.size=10Gi
+
+        - Verify the installation:
+            kubectl get pods
+            kubectl get pvc
+
+Upgrade the installed chart essentially means upgrading the release:
+        - Upgrade the release:
+            helm upgrade --install my-mysql bitnami/mysql --set auth.rootPassword=newsecretpassword --set primary.persistence.size=20Gi
+
+
+Best Practices
+
+    - Use version control for your charts
+    - Document your charts thoroughly
+    - Use templates for reusability
+    - Use CI/CD pipelines for chart testing and publishing
+    - Follow Helm's chart best practices guide - share this as well
+
+
+
+
+

@@ -425,3 +425,175 @@ Session 4:
 			- You configure its trust policy to allow the Service Account used by the AWS Load Balancer Controller Pods to assume this role (following the IRSA trust policy structure).
 			- When you deploy the AWS Load Balancer Controller (e.g., via Helm), you specify the Service Account name, and this Service Account is created and then annotated with the ARN of AmazonEKSLoadBalancerControllerRole.
 			- The controller Pods then use IRSA to obtain temporary AWS credentials, allowing them to make API calls to AWS to manage ALBs/NLBs on your behalf.
+
+----------------------------------------------------------------------------------------------------
+
+Session 5:
+-----------
+
+1.) Helm:
+
+	- The Problem: Managing Kubernetes Applications Across Environments
+
+		- When we start deploying our microservices to Kubernetes, we begin by writing manifest files. A typical microservice requires a set of these files to describe its desired state.
+
+		- Manifests per Microservice:
+
+			- deployment.yaml: Defines the Pod specification, number of replicas, and update strategy.
+
+			- service.yaml: Exposes the application pods as a stable network service.
+
+			- configmap.yaml: Manages non-sensitive configuration data, like API endpoints or feature flags.
+
+			- secret.yaml: Manages sensitive data like database passwords or API keys.
+
+			- persistentvolumeclaim.yaml: Requests stateful storage for databases or file uploads.
+
+		- This process works well for a single deployment into a development (Dev) environment. However, real-world software delivery requires promoting applications through multiple stages.
+
+		- Standard Delivery Pipeline:
+
+			- For example: Dev Env -> QA Env -> UAT Env -> Production Env
+
+	- The Challenge: Environment-Specific Configuration
+
+		- The core problem is that the Kubernetes manifests are not identical across these environments. Each environment has unique configuration requirements.
+
+		- Examples of Environmental Differences:
+
+			- Replica Count: Dev might have 1 replica, while Prod needs 10+ for high availability.
+
+			- Image Tags: Dev uses feature-branch images (feature-new-login-xyz), while Prod must only use stable, tagged releases (v2.5.1).
+
+			- Configuration (ConfigMaps): The database hostname for Dev (dev-db.internal) is different from Prod (prod-rds-instance.aws.com).
+
+			- Secrets: Each environment has its own unique database passwords and API keys.
+
+			- Resource Limits: Prod applications require significantly more CPU and memory allocated than Dev applications.
+
+		- This leads to a critical question: How do we manage these manifest variations without creating a maintenance overhead?
+
+			- Common (but Flawed) Approaches:
+
+				- Separate Folders: Creating dev/, qa/, and prod/ folders, each with a full copy of the manifests.
+
+					- Problem: This leads to massive duplication. A simple change to a shared label or annotation must be manually applied to every folder, which is slow and extremely error-prone.
+
+				- CI/CD Scripting: Using tools like Jenkins to find-and-replace placeholders in template files.
+
+					- Problem: This makes your CI/CD pipeline complex and brittle. The logic for your application's configuration is now hidden inside scripts instead of being declaratively managed in a repository.
+
+		- So a need for Kubernetes-native solution designed for packaging applications and managing their configurations is clearly identified.
+
+	- Solution: Helm - The Package Manager for Kubernetes
+
+		- Helm solves the packaging and configuration problem.
+
+		- Helm is a tool that streamlines installing and managing Kubernetes applications. It uses a packaging format called charts.
+
+		- Core Helm Concepts:
+
+			- Chart: A Helm package. It's a collection of files in a directory that describes a related set of Kubernetes resources. This is where we create our templates.
+
+			- Values: A file (typically values.yaml) that provides the default configuration for a chart. These are the values we will override for each environment (values-dev.yaml or values-prod.yaml etc.)
+
+			- Release: An instance of a chart running in a Kubernetes cluster. A single chart can be installed multiple times, creating unique releases.
+
+		- How Helm Solves Our Problem
+
+			- With Helm, we create one chart for our microservice. Instead of hardcoding values, we use placeholders.
+
+				- Example: Templated deployment.yaml
+
+						apiVersion: apps/v1
+						kind: Deployment
+						metadata:
+						  name: {{ .Release.Name }}-deployment
+						spec:
+						  replicas: {{ .Values.replicaCount }} # Placeholder for replica count
+						  template:
+							spec:
+							  containers:
+								- name: my-app
+								  image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}" # Placeholders
+								  env:
+									- name: DB_HOST
+									  value: {{ .Values.config.databaseHost }}
+
+
+				- Now, we manage the differences with small, environment-specific values files.
+
+					- Example: Environment-Specific Value Files
+
+						- values-dev.yaml
+						
+								replicaCount: 1
+								image:
+								  tag: "feature-xyz"
+								config:
+								  databaseHost: "dev-db.internal"
+
+						- values-prod.yaml
+
+								replicaCount: 10
+								image:
+								  tag: "v2.5.1"
+								config:
+								  databaseHost: "prod-rds-instance.aws.com"
+
+				- Deployment Command:
+
+					- To deploy to production, we combine the chart with the production values file.
+
+						- helm upgrade --install my-app ./my-chart -f values-prod.yaml
+
+					- To deploy to dev, we combine the chart with the dev values file.
+
+						- helm upgrade --install my-app ./my-chart -f values-dev.yaml
+
+	- Key Benefits:
+
+		- DRY (Don't Repeat Yourself): The application's structure is defined once. Only the configuration values change.
+
+		- Single Command Operations: Deploy or upgrade an entire multi-resource application in one shot.
+
+		- Reliable Rollbacks: If a new release is faulty, you can instantly roll back to a previously deployed version with helm rollback <release-name>.
+
+----------------------------------------------------------------------------------------------------
+
+Session 6:
+-----------
+
+1.) A Better Process: GitOps - Git as the Single Source of Truth
+
+	- Helm solved our packaging problem. GitOps solves our deployment process problem.
+
+	- GitOps is an operational framework that uses a Git repository as the single source of truth for declarative infrastructure and applications. 
+	
+	- The goal is to automate the deployment process by ensuring that the live state of your cluster always matches the state defined in Git.
+
+	- Core Principles of GitOps:
+
+		- Declarative: The entire desired state of your system is described declaratively in a Git repository (e.g., using Helm charts or plain YAML).
+
+		- Versioned and Immutable: Git is the source of truth, giving you a complete audit trail of all changes, the ability to revert changes, and clear ownership.
+
+		- Pulled Automatically: An automated agent in the cluster pulls the desired state from Git and applies it.
+
+		- Continuously Reconciled: The agent continuously observes the cluster's state and corrects any drift from the state defined in Git.
+
+2.) The Tool: ArgoCD - A Declarative GitOps Controller
+
+	- ArgoCD is the agent that lives in your cluster and makes the GitOps workflow a reality.
+
+	- How ArgoCD Works:
+
+		- You configure an ArgoCD Application resource, telling it which Git repository to monitor.
+
+		- ArgoCD fetches the manifests from the Git repository.
+
+		- It compares the state defined in Git (the "desired state") with the resources actually running in the cluster (the "live state").
+
+		- If there is a difference, ArgoCD reports the application as OutOfSync.
+
+		- It can then automatically (or with a manual click) synchronize the cluster, applying the necessary changes to match the state in Git.

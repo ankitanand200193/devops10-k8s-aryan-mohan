@@ -1,0 +1,109 @@
+ArgoCD Overview:
+----------------
+
+ArgoCD is a declarative, GitOps continuous delivery tool for Kubernetes. 
+
+It follows the GitOps pattern where the desired state of your applications is stored in Git, and ArgoCD ensures the actual state matches this desired state.
+
+
+GitOps - Which mentions that git repository should be everyone's source of truth
+
+continuous deployment - no manual intervention - very ideal approach - requires very thoughtful and strong processes to keep the main branch clean and deployable.
+
+Installation: Refer the installation guide at argocd\Installation-Guide.txt
+
+handson:
+- Create a git repo // sample repo: https://github.com/aryanm12/demo-argocd
+- Add Argo Application Configuration like: application.yaml
+- Place K8S manifest files in it like: k8s-manifest/sample.yaml
+- Apply the Argo Application file:
+    - kubectl apply -f application.yaml
+- Check if sync is working:
+    - kubectl get application -n argocd // Status should update to Healthy
+- Change replica settings at the runtime // Observe that there is no change in the cluster
+- Change the replicas in the git repo // Observe auto update
+
+
+Perform the same set of activities for running a Helm Chart via ArgoCD,
+The sample application.yaml for Helm with ArgoCD is as follows
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: helm-demo
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/aryanm12/demo-argocd
+    path: helm-dir
+    targetRevision: main
+    helm:
+      valueFiles:
+        - values-dev.yaml
+      parameters:
+        - name: replicaCount
+          value: "5"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: add-your-ns
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+
+
+
+Comprehensive CI/CD Guide for Microservices on Kubernetes:
+----------------------------------------------------------
+
+Application Architecture:
+  Multi-service Architecture:
+    Frontend service (Node.js)
+    Backend service (Node.js)
+    MongoDB database
+
+The sample code base for this placed at: https://github.com/aryanm12/k8s-cicd-demo
+
+
+Prerequisites:
+  - Kubernetes cluster - > EKS
+  - Jenkins server as our CICD tool
+  - Container registry ECR -  Since we are working with AWS env
+
+
+We will now perform the build & deployment (CICD) of 2 Sample Microservices in Kubernetes Cluster using following approaches:
+a.) Standard Approach:
+    CI - docker + ECR + Jenkins 
+    CD - kubectl + Jenkins
+b.) Helm Based:
+    CI - docker + ECR + Jenkins
+    CD - Helm  + Jenkins
+
+So the CI process is common in both approaches, so Let's begin with the CI process.
+
+- Deploy & Install Jenkins:
+    - Install Java 17
+    - Install Jenkins along with the necessary plugins
+        - Installation Guide for debian/ubuntu: https://pkg.jenkins.io/debian-stable/
+    - Run the script "jenkins-node-binaries-installation.sh" shared here to install all the required binaries in Jenkins to run the pipelines
+    - Additionally Install following plugins:
+        - AWS Credentials
+        - Pipeline: AWS Steps
+
+- Configure AWS credentials in Jenkins:
+    - Go to "Manage Jenkins" -> "Credentials" -> System -> Global credentials (unrestricted)
+    - Click on "Add Credentials"
+        a.) AWS Credentials:
+            Kind: AWS Credentials
+            - ID: aws-credentials
+            - Access Key ID: (your AWS access key)
+            - Secret Access Key: (your AWS secret key)
+
+- Create a Docker Registry in AWS ECR for Frontend and Backend images: demo-frontend and demo-backend
+
+- Create CI pipelines for FE and BE
+
+- Create CD Pipelines for FE, BE and MongoDB using kubectl
+
+- Create CD Pipelines for FE, BE and MongoDb using Helm Chart
