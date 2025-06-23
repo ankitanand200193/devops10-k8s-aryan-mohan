@@ -1,0 +1,19 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: pod-volume-hostpath-demo
+  labels:
+    app: web-app
+  namespace: default
+spec:
+  containers:
+  - name: web-app
+    image: nginx
+    volumeMounts:
+    - name: host-volume
+      mountPath: /host-logs
+  volumes:
+  - name: host-volume # Volume for binding Host Path
+    hostPath: 
+      path: /var/log/central-logs
+      type: DirectoryOrCreate

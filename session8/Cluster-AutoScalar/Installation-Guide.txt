@@ -1,0 +1,54 @@
+# Cloud Autoscaler Installation Steps
+
+Reference: 
+1.) https://github.com/kubernetes/autoscaler/tree/master/cluster-autoscaler/cloudprovider/aws
+2.) https://github.com/kubernetes/autoscaler/blob/master/cluster-autoscaler/cloudprovider/aws/examples/cluster-autoscaler-autodiscover.yaml
+
+IRSA (IAM role for Service Accounts)
+
+Step 1: Create an IAM Policy
+
+- Refer the IAM policy file in the current folder
+- Create the policy manually or using aws cli command:
+    - aws iam create-policy --policy-name AWSClusterAutoscalerPolicy --policy-document file://cluster-autoscaler-policy.json --profile <aws-profile-name>
+
+
+Step 2: Create an IAM Role
+
+- Refer & Update the IAM role trust policy in the current folder and create an IAM role
+- Update following:
+    - In line 7:
+        - AWS_ACCOUNT_ID
+        - AWS_REGION
+        - OIDC_ID // This should be fetched from the EKS cluster details page under the "OpenID Connect provider URL". Only copy the ID from there: e.g., 7C68A3B114FCED175B6C3877BF4750E7
+    - In line 12 & 13:
+        - AWS_REGION
+        - OIDC_ID
+- Create the role manually or using aws cli command:
+    - aws iam create-role --role-name EKSClusterAutoscaler --assume-role-policy-document file://iam-role-trust-policy.json --profile <aws-profile-name>
+
+
+Step 3: Attach the above created IAM policy to the IAM role
+
+- Again either manually or using below aws cli command:
+    - aws iam attach-role-policy --role-name EKSClusterAutoscaler --policy-arn arn:aws:iam::975050024946:policy/AWSClusterAutoscalerPolicy --profile <aws-profile-name>
+    - Note: The IAM Role Name and the IAM Policy ARN will differ in each case, so update the above command accordingly
+
+Step 4. Update & Apply the cluster-autoscaler-autodiscover.yaml file
+    - In line 11, update:
+        - EKS Cluster Autoscalar Role ARN
+    - Analyse this file:
+        - Check what all Kubernetes Objects are getting created and how are they passed to the deployment object which is running the cluster auto-scalar pods
+    - Check and Update (if required) Line 167 by providing the EKS cluster name
+    - Apply this file:
+        - kubectl apply -f cluster-autoscaler-autodiscover.yaml
+
+Step 5: Test if the cluster autoscaler deployed successfully on Kubernetes:
+    - Verify service account has the correct annotation
+        - kubectl describe sa cluster-autoscaler -n kube-system
+    - Check cluster autoscaler pods are running
+        - kubectl get pods -n kube-system -l app=cluster-autoscaler
+    - Check cluster autoscaler logs
+        - kubectl logs -n kube-system -l app=cluster-autoscaler
+
+

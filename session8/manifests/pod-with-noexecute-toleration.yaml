@@ -1,0 +1,31 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: critical-app
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: critical-app
+  template:
+    metadata:
+      labels:
+        app: critical-app
+    spec:
+      containers:
+      - name: nginx
+        image: nginx
+      tolerations:
+      - key: "maintenance"
+        operator: "Equal"
+        value: "planned"
+        effect: "NoExecute"
+        tolerationSeconds: 3600    # Pod will be evicted after 1 hour if the maintenance taint is added to a node using this command: kubectl taint nodes node1 maintenance=planned:NoExecute
+      - key: "node.kubernetes.io/not-ready"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300    # if node becomes unhealthy, also it is a Built-in Kubernetes taint for unhealthy nodes and it allows the pod to stay on a node that becomes unhealthy for 5 minutes
+      - key: "node.kubernetes.io/unreachable"
+        operator: "Exists"
+        effect: "NoExecute"
+        tolerationSeconds: 300 # if due to Network issue, node become unreachable, another built-in Kubernetes taint and it gives a 5-minute grace period before eviction

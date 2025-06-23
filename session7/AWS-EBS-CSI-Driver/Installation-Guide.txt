@@ -1,0 +1,59 @@
+# AWS EBS CSI Driver Installation Steps
+
+Step 1: Create an IAM role
+
+- Open the IAM console at https://console.aws.amazon.com/iam/.
+- In the left navigation pane, choose Roles.
+- On the Roles page, choose Create role.
+- On the Select trusted entity page, do the following:
+- In the Trusted entity type section, choose Web identity.
+- For Identity provider, choose the OpenID Connect provider URL for your cluster (as shown under Overview in Amazon EKS).
+- For Audience, choose sts.amazonaws.com.
+- Choose Next.
+- On the Add permissions page, do the following:
+- In the Filter policies box, enter AmazonEBSCSIDriverPolicy.
+- Select the check box to the left of the AmazonEBSCSIDriverPolicy returned in the search.
+- Choose Next.
+- On the Name, review, and create page, do the following:
+    For Role name, enter a unique name for your role, such as AmazonEKS_EBS_CSI_DriverRole.
+- Choose Create role.
+- After the role is created, choose the role in the console to open it for editing.
+- Choose the Trust relationships tab, and then choose Edit trust policy.
+- Find the line that looks similar to the following line:
+    "oidc.eks.region-code.amazonaws.com/id/CF856D2CC9C5E229C4C6D3D43B178C5E:aud": "sts.amazonaws.com"
+- Add a comma to the end of the previous line, and then add the following line after the previous line. Replace region-code with the AWS Region that your cluster is in. 
+- Replace CF856D2CC9C5E229C4C6D3D43B178C5E with your cluster’s OIDC provider ID.
+    "oidc.eks.region-code.amazonaws.com/id/CF856D2CC9C5E229C4C6D3D43B178C5E:sub": "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+- Choose Update policy to finish.
+
+Step 2: Get the Amazon EBS CSI driver
+
+- Install via Helm or AWS EKS Managed Add-Ons (There is some ongoing issues with it)
+
+- Helm Steps are given below:
+
+- helm repo add aws-ebs-csi-driver https://kubernetes-sigs.github.io/aws-ebs-csi-driver
+- helm repo update
+- helm upgrade --install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver -n kube-system
+
+e.g:
+
+helm upgrade --install aws-ebs-csi-driver aws-ebs-csi-driver/aws-ebs-csi-driver -n kube-system
+
+Step 3: Once the driver has been deployed, verify the pods are running:
+
+kubectl get pods -n kube-system -l app.kubernetes.io/name=aws-ebs-csi-driver
+
+
+Step 4: Change the Hop limit of the EC2 worker nodes to 2 to work with imds:
+
+Reason: In a container environment, if the hop limit is 1, the IMDSv2 response does not return because going to the container is considered an additional network hop. To avoid the process of falling back to IMDSv1 and the resultant delay, in a container environment we recommend that you set the hop limit to 2.
+
+aws ec2 modify-instance-metadata-options --instance-id <instance-id> --http-put-response-hop-limit 2 --http-tokens required --http-endpoint enabled --region <aws-region>
+
+
+e.g.: I have 2 worker nodes, so I have executed these commands:
+
+aws ec2 modify-instance-metadata-options --instance-id i-081eb4363b62d4075 --http-put-response-hop-limit 2 --http-tokens required --http-endpoint enabled --region ap-southeast-1
+
+aws ec2 modify-instance-metadata-options --instance-id i-0930413be42e9fc7c --http-put-response-hop-limit 2 --http-tokens required --http-endpoint enabled --region ap-southeast-1

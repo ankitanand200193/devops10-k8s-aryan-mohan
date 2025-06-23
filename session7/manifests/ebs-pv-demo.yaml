@@ -1,0 +1,14 @@
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+  name: ebs-pv-demo
+spec:
+  capacity:
+    storage: 10Gi # Specifies the size of the volume
+  accessModes:
+    - ReadWriteOnce # Defines how the volume can be mounted
+  storageClassName: gp2
+  persistentVolumeReclaimPolicy: Retain # Determines what happens to the volume when the PVC is deleted
+  csi: # Specifies the Container Storage Interface driver and volume details
+    driver: ebs.csi.aws.com
+    volumeHandle: vol-0d0cb31332e3124b6 # EBS volume should be in the same availability zone where the worker node is running

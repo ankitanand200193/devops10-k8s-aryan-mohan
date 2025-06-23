@@ -1,0 +1,32 @@
+# First deploy this pod
+apiVersion: v1
+kind: Pod
+metadata:
+  name: target-pod
+  labels:
+    app: web    # This is what your cache-pod is looking for
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+
+---
+# Second deploy this pod on the same node where web pod is running
+apiVersion: v1
+kind: Pod
+metadata:
+  name: cache-pod
+spec:
+  containers:
+  - name: demo
+    image: registry.k8s.io/pause:2.0
+  affinity:
+    podAffinity:
+      requiredDuringSchedulingIgnoredDuringExecution:
+      - labelSelector:
+          matchExpressions:
+          - key: app
+            operator: In
+            values:
+            - web
+        topologyKey: kubernetes.io/hostname  # Same node

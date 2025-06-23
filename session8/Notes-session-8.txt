@@ -1,0 +1,356 @@
+DaemonSets:
+-----------
+
+It calculates - the total worker nodes
+
+kubectl get nodes 
+
+Monitoring - Monitoring agents - I  need to run it on all my worker 
+
+Logging agent
+
+DaemonSet ensures that all nodes run a copy of a Pod by respecting the node placement strategies.
+
+As nodes are added/removed from the cluster, Pods are added/removed from those nodes automatically.
+
+Key features:
+One Pod per Node
+Automatic Pod Management
+Bypasses Scheduler's Node Selection
+Respect all node placement strategies
+Updates can be Rolling or OnDelete
+
+Common Use Cases:
+Monitoring Agents (Prometheus Node Exporter)
+Log Collectors (Fluentd, logstash)
+Networking Plugins (aws vpc cni)
+Storage Plugins (EBS CSI Driver)
+
+handson:
+- Apply daemonsets as per the below sample:
+    - kubectl apply -f manifests\daemonsets-demo.yaml
+
+RBAC (Role-Based Access Control):
+---------------------------------
+
+RBAC regulates access to workload and resources running inside Kubernetes based on permissions assigned to users and service accounts.
+
+Key Components:
+- Users: 
+    - Managed outside of Kubernetes (client certificate, AWS IAM users)
+- ServiceAccount: 
+    - Managed inside Kubernetes
+    - it acts as an identity for pods or applications
+    - can be linked to AWS IAM roles / Users in EKS
+- Role:
+    - Permissions within a namespace
+    - Specific kubernetes resources and actions can defined along with fine grained control
+- ClusterRole:
+    - Cluster-wide permissions
+    - Specific kubernetes resources and actions can defined along with fine grained control
+- RoleBinding: 
+    - Namespace-specific
+    - Links Role to users/ServiceAccounts
+- ClusterRoleBinding: 
+    - Used for cluster-level access
+    - Links ClusterRole to users/ServiceAccounts
+
+handson:
+
+Let's Implement Fine-Grained Access Control in Kubernetes
+
+Use Case: 
+
+Create a new user account for a junior developer. 
+
+This developer should be able to:
+    View existing pods
+    Create new pods
+    Update pod configurations
+But should NOT be able to:
+    Delete pods
+    Access other resources (services, deployments, etc.)
+
+Steps:
+a.) Create a Service Account
+    - kubectl create serviceaccount junior-dev
+    # Above command creates a Kubernetes service account which will represent the required user.
+
+b.) Define RBAC Policies
+    - View and apply the file management-rbac.yaml:
+        - kubectl apply -f manifests\management-rbac.yaml
+
+c.) Generate Authentication Token
+    - kubectl create token junior-dev
+    # Above command creates service account token which can be used for authentication when making requests to the Kubernetes API
+
+d.) Configure kubectl Context
+    - Configure credentials
+        - kubectl config set-credentials junior-dev --token=<Token-fron-above-command>
+    - Create a new context
+        - kubectl config set-context junior-dev-context --cluster=<EKS-cluster-arn> --user=junior-dev
+    # Above commands set up the credentials and context for our new service account based user
+
+e.) Testing the Configuration
+    - Switch to the new context
+        - kubectl config use-context junior-dev-context
+    - Should work: Listing pods
+        - kubectl get pods
+    - Should work: Creating a pod
+        - kubectl run test-nginx --image=nginx:latest
+    - Should work: Getting pod details
+        - kubectl get pod test-nginx -o yaml
+    - Should fail: Trying to delete a pod
+        - kubectl delete pod test-nginx
+
+
+Workload Level Resource Management:
+------------------------------------
+
+Key Pointers:
+- Critical for efficient cluster utilization
+- Two primary resources: CPU and Memory and sometimes ephemeral storage resource is also used
+- Two way to specify: Request and Limits
+- Defined at the container level ( should be present in Pod & Deployment manifest files)
+
+Resource Management Concepts
+
+Resource Requests:
+
+- Minimum guaranteed resources
+- Used by scheduler for node placement
+- Pod will get at least this amount
+
+Resource Limits:
+
+- Maximum allowed resources
+- CPU: Container throttles if exceeded
+- Memory: Container OOM killed if exceeded
+
+handson:
+- check & deploy the manifest files
+    - kubectl apply -f manifests\pod-resource-demo.yaml
+- View existing resource and limits set at pod level // kubectl describe pod <pod-name> -n <namespace>
+
+
+Pod Placement Strategies:
+--------------------------
+
+Default Behavior / algorithm:
+- Scheduler looks at available nodes
+- Considers only resource requirements
+- Uses "least requested" algorithm by default
+- Tries to spread pods across nodes
+
+What if we want to provision our pods to specific nodes.
+
+e.g.:
+
+Scenario 1 - Mixed Node Types:
+    Have:
+    - Some nodes with GPUs
+    - Some with average CPU/memory
+
+    Need:
+    - Match pods to right hardware
+    i.e.,
+    ML workloads -> GPU nodes
+    common workloads -> other nodes
+
+Scenario 2 - Critical Applications:
+    Have:
+    - Multiple replicas of same service
+    - Multiple availability zones
+
+    Need: 
+    - Spread pods across zones & nodes for High availability
+    i.e.,
+    3 replicas of web service & each in different AZ
+
+
+How to achieve:
+
+Node Assignment Methods:
+
+a.) NodeSelector:
+- Simplest form of node selection
+- Uses node labels for matching
+- Hard requirement - pods will not schedule if no match
+
+handson:
+- check the exisiting labels in the nodes:
+    - kubectl get nodes --show-labels
+- Add labels to nodes
+    - kubectl label nodes <node-name> processor=gpu
+- Apply the pod manifest with node selector:
+    - kubectl apply -f manifests\pod-with-node-selector.yaml
+- Verify that the pod got scheduled on the same node with label // kubectl get pods -o wide
+
+
+b.) Node Affinity:
+- More expressive than nodeSelector
+- Supports complex matching rules
+- Two types:
+    requiredDuringSchedulingIgnoredDuringExecution - Hard requirement (must match)
+    preferredDuringSchedulingIgnoredDuringExecution - Soft requirement (try to match)
+-  IgnoredDuringExecution in the above types ensure that the running pods don't evict or gets deleted if labels change after execution.
+
+handson:
+- Check node labels to help us define affinity with the help of existing labels
+    - kubectl get nodes --show-labels
+- You can apply custom labels like "disk-type" as well for any specific use case using command:
+    - kubectl label nodes <node-name> disk-type=ssd
+- deploy the application with required node affinity defined:
+    - kubectl apply -f manifests\required-node-affinity-demo.yaml
+    - explaination:
+        - Hard requirement: Pod MUST be scheduled to nodes in these zones
+        - Will only schedule on nodes labeled with:
+            zone=ap-southeast-1a OR zone=ap-southeast-1b
+        - Pod remains Pending if no matching nodes found
+        - 'IgnoredDuringExecution': If node labels change later, running pod stays
+- deploy the application with preferred node affinity defined:
+    - kubectl apply -f manifests\preferred-node-affinity-demo.yaml
+    - explaination:
+        - Soft requirement: Scheduler tries best effort
+        - Weights:
+            - high-memory preference: 80 points
+            - ssd preference: 20 points
+        - Pod will schedule even if no matches found
+
+
+c.) Pod Affinity/Anti-affinity:
+- Affinity - Run my pods NEAR the other pods, which is co-locate related pods
+- Anti-Affinity - Run my pods AWAY from the other pods, which is spread pods for high availability
+- Supports complex matching rules
+- Two types:
+    requiredDuringSchedulingIgnoredDuringExecution - Hard requirement (must match)
+    preferredDuringSchedulingIgnoredDuringExecution - Soft requirement (try to match)
+-  IgnoredDuringExecution in the above types ensure that the running pods don't evict or deleted if labels change after execution.
+- The placement depends on topologyKey's Significance, in which most common are:
+    - kubernetes.io/hostname - node level
+    - topology.kubernetes.io/zone - Availability zone level
+    - topology.kubernetes.io/region - Geographic region level
+
+
+handson:
+- Check node labels to help us define affinity with the help of existing labels
+    - kubectl get nodes --show-labels
+- You can apply custom labels like "disk-type" as well for any specific use case using command:
+    - kubectl label nodes <node-name> disk-type=ssd
+- deploy the application with required pod affinity defined:
+    - kubectl apply -f manifests\required-pod-affinity-demo.yaml
+    - explaination:
+        - Pod MUST run on same node as pods labeled app=web
+        - topologyKey: kubernetes.io/hostname: Same node requirement
+- deploy the application with preferred pod affinity defined:
+    - kubectl apply -f manifests\preferred-pod-affinity-demo.yaml
+    - explaination:
+        - Tries to schedule in same zone as cache pods
+        - Not mandatory - will schedule anyway if not possible
+        - topologyKey: topology.kubernetes.io/zone: Zone-level affinity
+- deploy the application with required pod anti-affinity defined:
+    - kubectl apply -f manifests\required-deploy-anti-affinity-demo.yaml
+    - explaination:
+        - Pods MUST NOT run on same node as other webapp pods
+        - Forces spread across nodes
+        - Used in Deployments with multiple replicas
+- deploy the application with preferred pod anti-affinity defined:
+    - kubectl apply -f manifests\preferred-pod-anti-affinity-demo.yaml
+    - explaination:
+        - Tries to schedule in different zones than web pods
+        - Soft requirement - will schedule anyway if needed
+        - Weight 100: Strong preference
+
+Good to read: Check, what does EKS best practice guide suggest for running workloads in different availability zones: https://aws.github.io/aws-eks-best-practices/
+
+
+d.) Taints and Tolerations
+
+Taint = "Keep pods away from node" (Node property)
+Toleration = "Can tolerate a taint" (Pod property)
+
+Taint Effects:
+- NoSchedule: Pod won't be scheduled (hard rule)
+- PreferNoSchedule: Try to avoid scheduling pod (soft rule)
+- NoExecute: Pod will be evicted if running and won't be scheduled
+
+Tolerations parameters:
+- key: "key-name"       # What taint to match
+- operator: "Equal"     # How to match (Equal or Exists)
+- value: "value-name"   # What value to match
+- effect: "NoSchedule"  # What effect to tolerate as per the taint
+- tolerationSeconds: 3600  # Optional, but important for NoExecute case
+
+handson:
+- Taint node for dedicated use
+    - kubectl taint nodes <node-name-1> dedicated=special-user:NoSchedule
+- Taint node for maintenance
+    - kubectl taint nodes <node-name-2> maintenance=planned:NoExecute
+- Apply Toleration for using dedicated node:
+    - kubectl apply -f manifests\pod-with-noschedule-toleration.yaml
+- Apply Toleration for evicting the pods from the nodes for maintainance
+    - kubectl apply -f manifests\pod-with-noexecute-toleration.yaml
+- Remove taint from the nodes:
+    - kubectl taint nodes <node-name-1> node1 dedicated:NoSchedule-
+    - kubectl taint nodes <node-name-1> node1 maintenance:NoExecute-
+
+Important Notes:
+
+Taints:
+- are "No Entry" signs on nodes
+- If there's no "No Entry" sign, anyone can not enter
+
+Tolerations:
+- are "I have permission to enter despite the sign"
+- DON'T force pods to run only on tainted nodes
+- Without taints, pods schedule normally based on other factors
+
+
+
+Advanced hands-on for cluster autos-caling in EKS using Kubernetes Cluster Autoscaler:
+---------------------------------------------------------------------------------------
+
+
+The Cluster Autoscaler (CA) is a component that automatically adjusts the size of your Kubernetes cluster especially the worker nodes when:
+
+- There are pods that fail to run due to insufficient resources
+- There are nodes in the cluster that have been underutilized for an extended period
+
+How Cluster Autoscaler Works:
+
+Scaling Up:
+    - Pods enter "Pending" state due to insufficient resources
+    - CA continuously monitors for unschedulable pods
+    - CA identifies pods that can't be scheduled
+    - CA Checks if Pod is Actually Unschedulable
+        - Verifies pod hasn't failed for other reasons
+        - Confirms pod resource requests are valid
+        - Checks if pod respects scheduling constraints
+    - CA simulates pod scheduling
+        - CA performs a "what-if" analysis by
+            - Creating a virtual node with the properties of a new node from the auto-scaling group
+            - Running the Kubernetes scheduler's logic against this virtual node
+            - Verifying if the pending pods would successfully schedule
+    - If simulation succeeds, new nodes are added by
+        - Verifying cloud provider quotas meaning verifying EKS managed node group quota
+        - Check max node limits
+        - Increase the aws autoscaling group desired capacity
+        - Wait for node to join cluster
+        - New worker node is added to the cluster
+
+Scaling Down:
+    - CA regularly checks for underutilized nodes
+    - Identifies pods that can be moved to other nodes
+    - Evicts pods safely
+    - Removes the empty node
+
+Installation Steps:
+Detailed installation guide is available at: Cluster-AutoScalar\Installation-Guide.txt
+
+handson:
+- Test the Node Autoscaling scenario:
+    - Deploy the manifest file: kubectl apply -f manifests\test-ca.yaml
+
+Note:
+- By default, cluster autoscaler will not terminate nodes running pods in the kube-system namespace. You can override this default behaviour by passing in the --skip-nodes-with-system-pods=false flag.
+- By default, cluster autoscaler will wait 10 minutes between scale down operations, you can adjust this using the --scale-down-delay-after-add, --scale-down-delay-after-delete, and --scale-down-delay-after-failure flag. E.g. --scale-down-delay-after-add=5m to decrease the scale down delay to 5 minutes after a node has been added.

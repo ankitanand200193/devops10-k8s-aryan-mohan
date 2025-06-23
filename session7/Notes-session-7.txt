@@ -1,0 +1,256 @@
+Additional Important Note:
+-------------------------
+
+Kubernetes interfaces:
+
+ Standardized APIs(having a set of rules as protocols) that allow for modular and extensible integration of core functionalities in Kubernetes
+ 
+Kubernetes plugins:
+
+  Implementations of these interfaces, enabling third-party solutions to seamlessly work with Kubernetes, enhancing flexibility and feature richness.
+
+
+Key Interfaces and their Plugins:
+
+1. CRI (Container Runtime Interface):
+
+Main Usage:
+    - Manages containers and image operations:
+        - Image-related operations (pulling, listing, removing images)
+        - Container operations (creating, starting, stopping, removing)
+
+Container Runtime Plugins: containerd, CRI-O, Docker (deprecated)
+
+2. CNI (Container Network Interface):
+
+Main Usage:
+    - Handles pod networking, like:
+        - Network connectivity for pods across nodes
+        - Assign IP addresses to pods
+
+Container Network Plugins: Flannel, Cilium, AWS VPC CNI, Calico
+
+3. CSI (Container Storage Interface):
+
+Main Usage:
+    - Manages persistent storage for pods, like:
+        - Provisioning volumes in the attached storage provider
+        - Attaching/detaching volumes to nodes
+        - Mounting/unmounting volumes in containers
+
+Container Storage Plugins: Amazon EBS CSI driver, Amazon EFS CSI driver, Google Persistent Disk CSI driver, Azure Disks CSI driver
+
+
+Key Benefits:
+Mix and Match: Use different plugins based on needs
+Easy Updates: Change plugins without changing Kubernetes, like I used an EBS CSI driver but the requirement changed and I could easily switch to EFS CSI Driver without any hassle
+Vendor Choice: Not locked into one provider
+ 
+
+
+
+Detailed view into Kubernetes Storage:
+--------------------------------------
+
+Container and Storage Basics:
+-----------------------------
+
+# When you run a container, it starts with its image filesystem
+docker run nginx
+
+# Any files created inside are temporary
+docker exec <container-id> bash -c "echo 'hello' > /tmp/test.txt"
+
+# On-disk files in a container are ephemeral, If container restarts, the file is gone
+
+
+Containers in a Pod:
+--------------------
+
+e.g.:
+
+apiVersion: v1
+kind: Pod
+metadata:
+  name: basic-pod
+spec:
+  containers:
+  - name: nginx
+    image: nginx
+  - name: redis
+    image: redis
+
+By default:
+ - Each container has its isolated On-disk filesystem
+ - Containers can't share files
+ - All files are lost when containers restart meaning the pod restart or deleted
+
+
+Introduction to Kubernetes Volumes
+-----------------------------------
+
+a.) emptyDir (Sharing Storage Between Containers):
+    - Ephemeral Volume as the content which is written in the runtime is lost when the pod is deleted or restarted
+    - Creates an empty directory that's erased when the pod is deleted
+    - Useful for temporary storage or sharing data between containers in a pod
+
+Sample: manifests\pod-volume-emptydir-demo.yaml
+
+b.) configMap and secret:
+    - Ephemeral Volume as the content which is written in the runtime is lost when the pod is deleted or restarted
+    - Mount Kubernetes ConfigMaps and Secrets as volumes
+    - Useful for injecting configuration data or sensitive information into pods
+
+Sample files: 
+- manifests\html-cm.yaml
+- manifests\pod-volume-cm-demo.yaml
+
+c.) hostPath (Node-level storage)
+    - This volume type is not ephemeral rather persistent and it persist the data on the node irrespective of the Pod Lifecyle
+    - Mounts a file or directory from the worker node's filesystem to the pod/container
+    - Survives pod restarts
+    - Not suitable for multi-node clusters
+
+Sample: manifests\pod-volume-hostpath-demo.yaml
+
+d.) Persistent Volumes and Claims (Cluster-level storage):
+
+PV (PersistentVolume) and PVC (PersistentVolumeClaim) are Kubernetes resources used to manage persistent storage in Kubernetes. 
+
+- PV (Persistent Volumes):
+    - Resources in the cluster that provide storage. 
+    - Provisioned statically by an administrator or dynamically using Storage Classes.
+    - Persistent Volumes can be :
+        - Local (node-specific):
+            - Provide better performance due to direct node storage access
+            - Less commonly used in production workloads as they limit pod scheduling to specific nodes.
+
+        e.g: Local PV demo: manifests\local-pv-demo.yaml
+
+        - Remote (network-attached, cloud provider-managed): 
+            - Preferred as they provide better data persistence and availability
+            - Some common examples are: NFS, AWS EBS, Azure Disk, distributed storage
+            - Requires a corresponding Container Storage Interface (CSI) driver in your cluster, as without the appropriate CSI driver, the cluster cannot communicate with the storage provider to provision and manage volumes
+
+        e.g.: PV with AWS EBS: manifests\ebs-pv-demo.yaml
+
+- PVC (Persistent Volume Claims):
+    - Requests for storage by Pods
+    - Namespaced resources that can be used by pods to claim PVs.
+
+    Sample: manifests\ebs-pvc-demo.yaml
+
+Understanding Access modes for PVs:
+    ReadWriteOnce (RWO): Volume can be mounted as read-write by a single node - EBS
+    ReadOnlyMany (ROX): Volume can be mounted read-only by many nodes - NFS / EFS
+    ReadWriteMany (RWX): Volume can be mounted as read-write by many nodes - EFS
+
+    Note: Not all volume types support all access modes. For example, AWS EBS volumes only support ReadWriteOnce.
+
+handson:
+Pre-Requisite: If you need AWS EBS to be attached with your pod for providing persistant storage then AWS EBS CSI Driver must be installed in your cluster.
+    - Installation Steps: AWS-EBS-CSI-Driver\Installation-Guide.txt
+
+- check & deploy the manifest files
+    - kubectl apply -f manifests\ebs-pv-demo.yaml
+    - kubectl apply -f manifests\ebs-pvc-demo.yaml
+    - kubectl apply -f manifests\pod-volume-with-pvc.yaml
+- View existing pv and pvc resources \\ kubectl get pv & kubectl get pvc -n <namespace>
+- Describe existing pv and pvc resources for detailed information \\ kubectl describe pv <pv-name> & kubectl describe pvc <pvc-name> -n <namespace>
+- Delete pv and pvc resources \\ kubectl delete pv <pv-name> & kubectl delete pvc <pvc-name> -n <namespace>
+
+
+Note:
+
+1.) Can 1 PV having 10 gb storage be requested by multiple pvcs of 5 gb request?
+Ans: No, If you have a 10GB PV, it can only be bound to a single PVC, even if that PVC requests less than 10GB. The full capacity of the PV is reserved, even if not all of it is used.
+
+Detailed explanation:
+- One-to-One Relationship: In Kubernetes, there's a one-to-one relationship between a PV and a PVC.
+Once a PVC is bound to a PV, that entire PV is exclusively reserved for that PVC.
+
+- AccessMode: PVs and PVCs must have compatible accessModes to be bound.
+
+Best Practices:
+It's generally recommended to have PVs and PVCs with matching sizes.
+
+
+e.) Storage Classes and Dynamic Provisioning of PVs:
+
+
+Storage Classes in Kubernetes provide a way to describe the "classes" of storage offered in a cluster. They serve as a mechanism for administrators to define different types of storage with varying performance characteristics, pricing, or other attributes.
+
+Key concepts:
+- Storage Classes are cluster-level resources
+- They define a provisioner that determines what volume plugin to use for provisioning PVs
+- Allow dynamic provisioning of Persistent Volumes
+
+Now, after creating the StorageClass. When a user creates a PVC, the cluster can automatically provision the storage based on the Storage Class.
+
+Example of a Storage Class, PVC and Pod for dynamic provisioning with AWS EBS: 
+- manifests\ebs-sc-demo.yaml
+- manifests\ebs-pvc-with-sc-demo.yaml
+- manifests\pod-volume-with-sc-based-pvc.yaml
+
+flexibility, you can use StorageClasses to dynamically provision PVs that match PVC requests exactly.
+
+
+Stateful applications on Kubernetes:
+------------------------------------
+
+Understanding StatefulSets: A StatefulSet is a Kubernetes controller just like deployments that manages stateful applications. It's designed to maintain a sticky identity for each of their Pods, ensuring stable network identities and persistent storage.
+
+Difference between Deployment and statefulsets:
+-----------------------------------------------
+
+StatefulSets are designed to run the applications with stateful components, while Deployments are used for running the stateless ones.
+
+1 Pod -> 1 PVC -> 1 PV
+
+So if in case you have defined 3 replicas in your StatefulSet
+
+Pod 1 -> PVC 1 -> PV 1 -> Volume 1 in EBS
+Pod 2 -> PVC 2 -> PV 2 -> Volume 2 in EBS
+Pod 3 -> PVC 3 -> PV 3 -> Volume 3 in EBS
+
+As we understand the deployments also can use persistent storage using PV and PVC, so the main difference is not in using the storage but how that storage is managed and associated with Pods.
+
+StatefulSets provide a way to maintain a one-to-one relationship between Pods and their storage, which is crucial for many stateful applications, whereas in deployment all Pods share the same PVC.
+
+Key Features:
+-------------
+Pods have a persistent identity
+Strict ordering of Pod creation and deletion (0, 1, 2, ...)
+Predictable Pod names (e.g., mysql-0, mysql-1, mysql-2)
+Scales out sequentially, Waits for each Pod to be ready before creating the next
+Uses volumeClaimTemplates to create a unique PVC for each Pod
+Always uses a Headless Service, wherein each Pod gets a stable DNS name
+
+handson:
+example is directly derived from: https://kubernetes.io/docs/tasks/run-application/run-replicated-stateful-application/
+
+- check & deploy the manifest files
+    - manifests\ebs-sc-sfs.yaml
+    - manifests\mysql-cm.yaml
+    - manifests\mysql-headless-service.yaml #A headless Service should be created BEFORE creating the StatefulSet
+    - manifests\mysql-statefulset.yaml
+- View existing statefulset resources \\ kubectl get statefulset \\ kubectl get sts
+- Describe an statefulset for detailed information \\ kubectl describe statefulset mysql
+- Check the PVCs created using statefulsets \\ kubectl get pvc
+- Scale the statefulsets \\ kubectl scale statefulset mysql --replicas=5
+- Delete a pod and watch it recreate with the same name \\ kubectl delete pod mysql-0
+- Delete statefulsets \\ kubectl delete statefulset mysql
+
+Relevance of creating a headless service:
+-----------------------------------------
+
+A headless service is crucial for StatefulSets because it allows direct communication with individual Pods. It is used to create the network identity of the pods.
+
+Here's why it's important:
+- DNS entries: Each Pod gets a DNS entry like <pod-name>.<headless-service-name>.<namespace>.svc.cluster.local. For example, mysql-0.mysql.default.svc.cluster.local
+
+prince-mysql-0.prince-mysql.default.svc.cluster.local
+
+- No load balancing: Unlike regular services, headless services don't provide load balancing. This is important for stateful applications where you need to connect to a specific instance.
+
+- Peer discovery: In distributed systems (like database clusters), Pods often need to discover and communicate with each other directly. Headless services facilitate this.

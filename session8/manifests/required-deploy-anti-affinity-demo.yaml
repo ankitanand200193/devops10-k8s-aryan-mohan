@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ha-webapp
+spec:
+  replicas: 2
+  selector:          
+    matchLabels: 
+      app: webapp-01
+  template:
+    metadata:
+      labels:
+        app: webapp-01
+    spec:
+      containers:
+      - name: demo
+        image: registry.k8s.io/pause:2.0
+      affinity:
+        podAntiAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+          - labelSelector:
+              matchExpressions:
+              - key: app
+                operator: In
+                values:
+                - webapp-01
+            topologyKey: kubernetes.io/hostname  # Different nodes

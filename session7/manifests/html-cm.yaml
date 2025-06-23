@@ -1,0 +1,13 @@
+# Order Service ConfigMap
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: html-volume-config
+data:
+  index.html: |
+    <!DOCTYPE html>
+    <html>
+    <body>
+        <h1>Hello, World, This is a demo of config map type of volume!</h1>
+    </body>
+    </html>

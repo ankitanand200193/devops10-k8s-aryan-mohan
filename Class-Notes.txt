@@ -597,3 +597,269 @@ Session 6:
 		- If there is a difference, ArgoCD reports the application as OutOfSync.
 
 		- It can then automatically (or with a manual click) synchronize the cluster, applying the necessary changes to match the state in Git.
+		
+----------------------------------------------------------------------------------------------------
+
+Session 7:
+-----------
+
+1.) Advanced Storage Concepts in Kubernetes & AWS
+
+	- Revisiting Storage Types (AWS Context)
+
+		- Amazon S3 (Simple Storage Service): Object Storage
+
+			- Nature: Object-based storage. You store data as "objects" (files) within "buckets" (containers for objects).
+
+			- Key Characteristics:
+
+				- Highly scalable, durable, and available.
+
+				- Accessed via APIs (HTTP/S endpoints), AWS SDKs, or CLI.
+
+				- Not a block storage device: You cannot "mount" an S3 bucket directly to an EC2 instance or a Kubernetes Pod as if it were a local filesystem drive in the traditional sense.
+
+			- Use Cases: Storing backups, static website assets, application artifacts, data lakes, media files.
+
+		- Interaction with Kubernetes: Pods can interact with S3 using AWS SDKs (leveraging IRSA for credentials) to upload/download objects. Tools like s3fs-fuse can simulate a mount but it's not native block storage and has performance implications.
+
+	
+	- Amazon EFS (Elastic File System): Network File System (NFS)
+
+		- Nature: A managed NFS (Network File System) service provided by AWS. It provides shared file storage.
+
+		- Key Characteristics:
+
+			- Shared Access: Multiple EC2 instances (and thus Kubernetes Pods running on those EC2 worker nodes) can mount and access the same EFS filesystem concurrently.
+
+			- Scalability & Elasticity: Storage capacity scales automatically as you add or remove files. You pay for what you use.
+
+			- Mountable: Can be mounted to EC2 instances (and Pods via a PVC) in multiple Availability Zones within a region.
+
+
+		- Scenario: You have 10 application servers (or Pods) that all need to read from and write to a common set of files (e.g., shared configuration, web content, user-uploaded content for a CMS).
+
+			- You create an EFS filesystem.
+
+			- You create EFS mount targets in the subnets/Availability Zones where your EC2 instances/worker nodes reside.
+
+			- EC2 instances mount the EFS filesystem to a local directory (e.g., /data).
+
+			- In Kubernetes, you'd typically use the AWS EFS CSI Driver to provision PersistentVolumes (PVs) backed by EFS and then PersistentVolumeClaims (PVCs) for your Pods.
+
+		- Use Cases in Kubernetes: Shared content for web servers, CI/CD build artifacts, machine learning training data, home directories.
+
+
+2.) Understanding Kubernetes hostPath Volumes (Use with Extreme Caution)
+
+	- hostPath Volume Type: Mounts a file or directory from the host node's filesystem directly into a Pod.
+
+	- Problem Scenario:
+
+		- Your cluster has 4 worker nodes (WN-1, WN-2, WN-3, WN-4).
+
+		- You use a hostPath volume for a Pod, say pointing to /mnt/data on the host.
+
+		- If the Pod is scheduled on WN-1: Data written by the Pod will be stored in /mnt/data on WN-1.
+
+		- If that Pod dies and a new instance is scheduled on WN-2: The new Pod will try to access /mnt/data on WN-2. This directory will either not exist or will contain different data than what was on WN-1. The data is not truly persistent or shared across the cluster.
+
+		- This is why hostPath is Generally Bad for Application Data as the Data is tied to a specific node.
+
+
+3.) The Critical Link: Volume Availability Zones and Cluster Node Availability Zones (Important Interview Point)
+
+	- Background: Many cloud block storage solutions (like AWS EBS, Azure Managed Disks, GCP Persistent Disks) are zonal resources. This means an EBS volume exists in a specific Availability Zone (AZ) (e.g., us-west-2a).
+
+	- The Constraint: An EC2 instance (and therefore also a Kubernetes worker node running on that EC2 instance) can only mount an EBS volume if both the EC2 instance and the EBS volume are in the SAME Availability Zone. You cannot mount an EBS volume from us-west-2a to an EC2 instance in us-west-2b.
+
+	- Implications for Kubernetes Storage Provisioning & Scheduling:
+
+		- Static Provisioning: If you manually create an EBS volume (PV) in us-west-2a and a Pod requests it via a PVC, the Kubernetes scheduler must place that Pod on a worker node running in us-west-2a. If no suitable node exists in that AZ with enough resources, the Pod will remain Pending.
+
+		- Dynamic Provisioning (with Storage Class): When a StorageClass uses a CSI driver (e.g., AWS EBS CSI Driver) to dynamically provision an EBS volume for a PVC:
+
+			- The CSI driver often uses topology-aware scheduling.
+
+			- When a Pod requests a PVC, the scheduler first picks a node for the Pod (considering resource requests, taints, tolerations, affinity, etc.).
+
+			- Once a node is tentatively selected (say, in us-west-2b), the CSI driver is then instructed to provision the EBS volume in that specific AZ (us-west-2b).
+
+			- This ensures the dynamically created volume is accessible to the node where the Pod will run.
+
+	- Why this is Important for Interviews:
+
+		- Demonstrates understanding of fundamental cloud infrastructure constraints.
+
+		- Explains potential reasons for Pods being stuck in Pending state (e.g., "no nodes available to schedule pod, 1 node(s) had volume node affinity conflict").
+
+		- Highlights the importance of designing your cluster and storage strategy with AZs in mind for high availability and fault tolerance. For HA, you'd want worker nodes and potentially replicated data (if using appropriate storage solutions like EFS or replicated databases) across multiple AZs.
+
+
+----------------------------------------------------------------------------------------------------
+
+Session 8:
+-----------
+
+
+1.) Troubleshooting and Advanced Workload Management
+
+	- kubectl events: Your First Stop for Troubleshooting
+
+		- The command kubectl get events (or kubectl events in newer versions) prints a chronological list of events that have occurred in the cluster (or a specific namespace if -n <namespace> is used).
+
+		- Why it's useful:
+
+			- Shows actions taken by controllers (e.g., "Scaled up replica set myapp-rs to 3").
+
+			- Reveals errors and warnings from the scheduler, kubelet, or controllers (e.g., "FailedScheduling", "ImagePullBackOff", "FailedMount").
+
+			- Provides clues when Pods are not starting, Deployments are not rolling out, or other unexpected behavior occurs.
+
+2.) Understanding Kubectl Request Flow & CSI Driver Permissions
+
+	- Let's break down how a request to create a PersistentVolume (backed by AWS EBS) flows and where permissions are checked:
+
+		- Your Action: You, as a user with kubectl access, apply a PersistentVolumeClaim YAML.
+
+		- Authentication & Authorization Path:
+
+			- kubectl to EKS Control Plane (API Server):
+
+				- Your kubectl command (configured with a kubeconfig file) sends an API request to the Kubernetes API Server in the EKS control plane.
+
+				- AWS IAM Level (Authentication for kubectl user): If your kubeconfig uses AWS IAM to authenticate (e.g., via aws eks get-token or an IAM authenticator), AWS IAM first verifies your identity and whether you are allowed to talk to the EKS cluster API. This is often managed via the EKS Access Entries.
+
+				- Kubernetes RBAC Level (Authorization within Kubernetes): Once authenticated to the API Server, Kubernetes RBAC rules are checked. Does your Kubernetes user/group (derived from the IAM authentication) have permission to create PersistentVolumeClaims in the specified namespace?
+
+			- PVC Creation and Dynamic Provisioning:
+
+				- If authorized, the PVC object is created in etcd.
+
+				- The StorageClass specified in the PVC (or the default StorageClass) indicates which provisioner should handle it (e.g., ebs.csi.aws.com).
+
+				- The Kubernetes volume controller sees the unbound PVC and delegates the provisioning task to the appropriate CSI (Container Storage Interface) driver.
+
+			- CSI Driver Action (e.g., AWS EBS CSI Driver):
+
+				- The AWS EBS CSI Driver is itself a set of Pods running in your cluster (typically in the kube-system namespace).
+
+				- IRSA for CSI Driver Pods: These CSI driver Pods are configured with a Service Account that has an IAM Role associated with it via IRSA. This IAM Role grants the CSI driver Pods permissions to make AWS API calls like ec2:CreateVolume, ec2:AttachVolume, ec2:DescribeVolumes, etc.
+
+				- The CSI driver Pod, using its IRSA-vended temporary AWS credentials, calls the AWS EC2 API to create an actual EBS volume in the appropriate Availability Zone (e.g., ap-southeast-1a).
+
+				- Once the EBS volume is created, the CSI driver creates a PersistentVolume object in Kubernetes representing this EBS volume and binds it to your PVC.
+
+
+3.) StatefulSets: Managing Stateful Applications
+
+	- While Deployments are great for stateless applications, stateful applications (databases, message queues with persistent state, etc.) have specific needs:
+
+		- Stable, Unique Network Identifiers: Pods need persistent hostnames.
+
+		- Stable, Persistent Storage: Each Pod instance needs its own dedicated, persistent storage that "follows" it even if the Pod is rescheduled.
+
+		- Ordered, Graceful Deployment and Scaling: Pods might need to be created, updated, or deleted in a specific order.
+
+		- Ordered, Graceful Termination: Pods need to shut down cleanly, potentially performing cleanup.
+
+	- StatefulSets provide these guarantees.
+
+		- Stable Network Identifiers:
+
+			- Pods managed by a StatefulSet get predictable, unique names based on an ordinal index: <statefulset-name>-0, <statefulset-name>-1, etc.
+
+			- These names are also their hostnames within the cluster.
+
+			- Headless Service: StatefulSets are almost always used with a "headless" Service (clusterIP: None).
+
+			- A headless Service doesn't do load balancing itself and doesn't have a single ClusterIP.
+
+			- Instead, it creates DNS A records for each Pod managed by the StatefulSet, in the format: <pod-name>.<headless-service-name>.<namespace>.svc.cluster.local.
+
+			- Example: For a database cluster (master and 2 readers):
+
+			- StatefulSet db, Headless Service db-hl.
+
+			- Pods: db-0, db-1, db-2.
+
+			- DNS: db-0.db-hl.my-namespace..., db-1.db-hl.my-namespace..., db-2.db-hl.my-namespace...
+
+			- This allows the db-0 (master) Pod to directly address db-1 and db-2 by their stable DNS names for replication or coordination, without needing to discover dynamic Pod IPs.
+
+		- Stable, Persistent Storage:
+
+			- StatefulSets can use a volumeClaimTemplates section in their manifest.
+
+			- For each Pod replica, this template automatically creates a unique PersistentVolumeClaim (and thus a PersistentVolume).
+
+			- Example: db-0 gets data-db-0 PVC, db-1 gets data-db-1 PVC.
+
+			- If db-0 is rescheduled to a different node, its data-db-0 PVC (and the underlying PV) is re-attached, ensuring it gets its original data.
+
+		- Ordered Operations:
+
+			- Deployment/Scaling Up: Pods are created one at a time, in order (0, 1, 2...). The next Pod isn't created until the previous one is Running and Ready.
+
+			- Deletion/Scaling Down: Pods are deleted in reverse order (...2, 1, 0). The next Pod isn't deleted until the previous one has fully terminated.
+
+			- Updates (RollingUpdate): Partitions can be used to control the update process, updating Pods in reverse order from the highest ordinal down.
+
+	- Use Cases for StatefulSets:
+
+		- Relational Databases (e.g., PostgreSQL, MySQL clusters)
+
+		- NoSQL Databases (e.g., Cassandra, MongoDB replica sets)
+
+		- Message Queues with persistent state (e.g., Kafka, RabbitMQ clusters)
+
+		- Any application where instances have unique identities, stable storage per instance, and require ordered operations.
+
+
+4.) Analogy for Kubernetes RBAC vs. AWS IAM
+
+		-- RBAC:
+
+		Service Account                      - IAM Role
+		ClusterRole / Role                   - IAM policy
+		ClusterRoleBinding / RoleBinding     - Attach the Policy to the Role 
+
+
+5.) Examples of CPU-Intensive Applications:
+
+	- Video Encoding/Transcoding: Processing raw video data into different formats/resolutions.
+
+	- Scientific Computations/Simulations: Complex mathematical modeling (e.g., weather forecasting, physics simulations).
+
+	- Data Analytics & Machine Learning Training: Processing large datasets, running complex algorithms.
+
+	- Cryptographic Operations: Intensive encryption/decryption tasks (though often offloaded to hardware).
+
+	- High-Traffic Request Processing (CPU-bound tasks): Web servers performing complex calculations or data manipulation per request rather than I/O-bound tasks.
+
+
+6.) Examples of Memory-Intensive Applications:
+
+	- In-Memory Databases/Caches: Redis, Memcached, or databases configured to hold large working sets in RAM.
+
+	- Large Data Set Processing: Applications that load significant amounts of data into memory for analysis (e.g., some big data frameworks, genomics analysis).
+
+	- Java Applications (with large heaps): JVMs can be configured with large heap sizes.
+	
+7.) HPA dependency on CPU resources (requests and limits)for Utilization Calculation:
+	
+	- The HPA calculates CPU utilization as: (Actual CPU Usage of Pod) / (CPU Request of Pod).
+
+	- If you don't set a CPU request, the HPA cannot accurately determine the utilization percentage to make scaling decisions.
+
+	- So, CPU requests are non-negotiable for HPA based on CPU utilization.
+
+	- CPU Limits for Node Stability and Preventing "Noisy Neighbors":
+		
+		- Safety Net: CPU limits act as a hard cap. If a Pod (due to a bug, unexpected load, or misconfiguration) starts consuming excessive CPU, the limit prevents it from monopolizing the node's CPU resources and starving other Pods (including critical system Pods or other applications).
+
+		- Predictable Performance: Without limits, a runaway Pod can degrade the performance of all other workloads on that node, potentially leading to cascading failures or node instability.
+		
+		- HPA Scales Replicas, Not Individual Pod Capacity: HPA adds or removes instances (Pods) of your application. It doesn't increase the CPU capacity of an individual Pod. If one Pod in your HPA-managed deployment goes rogue and has no limit, it can still cause problems before HPA can react or even if HPA has scaled out.
+
+		- While HPA doesn't directly use the limit for its scaling decisions, the limit ensures that individual Pods behave predictably.
