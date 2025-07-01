@@ -1,0 +1,14 @@
+Creating End to End VPC in AWS:
+
+Req Gathering:
+1. Create a VPC 
+2. Create public subnets 
+3. Create Private subnets 
+4. Create a Public route table 
+5. Create a private route table 
+6. Create a internet gateway 
+7. Create a Nat-gateway 
+9. Update public route table routes to include a route to IGW 
+10. Update private route table routes to include a route to nat gateway 
+11. associate Public RT to public subnets 
+12. associate Private RT to private subnets

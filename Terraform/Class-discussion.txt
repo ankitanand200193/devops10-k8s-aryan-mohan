@@ -1,0 +1,155 @@
+Session 1:
+-----------
+
+1.) Terraform and OpenTofu
+---------------------------
+
+	- The MPL 2.0 License
+
+		- Initially, Terraform was licensed under the Mozilla Public License v2.0 (MPL 2.0). 
+
+		- MPL 2.0 is a permissive, "weak copyleft" open-source license. 
+		
+		- In simple terms, this meant:
+
+			- Freedom to Use: Anyone could use Terraform for free for any purpose, including commercial use, without restriction.
+
+			- Freedom to Modify: You could change the source code. If you distributed your changes, you had to make the source for those changes available.
+
+			- Freedom to Embed & Build On: Companies were allowed to build commercial products, services, and wrappers on top of Terraform's open-source code. They could create platforms that used Terraform as their engine and sell them as a service.
+
+
+		- The Ecosystem: This permissive license was a key reason for Terraform's explosive growth. It created a vibrant ecosystem of third-party tools and platforms, such as:
+
+			- CI/CD & Automation Wrappers: Spacelift, Terraform Cloud/Enterprise, Terrateam, Atlantis, Env0. These tools provide features like collaborative workflows, policy as code, and state management on top of the core Terraform engine.
+
+			- Helper Utilities: Terragrunt, which provides wrappers for keeping your Terraform code DRY (Don't Repeat Yourself).
+
+
+	- Changing to the BUSL License
+
+		- In August 2023, HashiCorp announced a license change for Terraform (and its other products) from MPL 2.0 to the Business Source License (BUSL) v1.1.
+
+		- BUSL is a "source-available" license, not a traditional "open-source" license as defined by the Open Source Initiative (OSI).
+
+		- The core principle of BUSL is: You can use the software for free for any purpose, unless you are building a product that is competitive with HashiCorp's commercial offerings.
+
+		- This means you can still use Terraform to provision infrastructure on any cloud for your own company's internal or external products.
+
+		- However, if you wanted to build a new product like Spacelift or another "Terraform as a Service" platform, you would now need a commercial agreement with HashiCorp.
+
+
+	- The Community Reaction & OpenTofu
+
+		- The license change was controversial because it put the vendors in the Terraform ecosystem (who were now HashiCorp's competitors) in a difficult position.
+
+		- In response, a coalition of these companies, led by Gruntwork, Spacelift, and others, created a fork of the last MPL 2.0-licensed version of Terraform.
+
+		- This fork was named OpenTofu.
+
+		- Key Goals of OpenTofu:
+
+			- Truly Open Source: Keep the project under a permissive, OSI-approved license (MPL 2.0).
+
+			- Community Driven: Ensure its development is managed by the community, not a single corporation.
+
+			- Drop-in Replacement: Maintain compatibility with Terraform versions 1.5.x and earlier, and closely track provider and module compatibility going forward.
+
+		- CNCF Governance: In September 2023, OpenTofu was accepted into the Cloud Native Computing Foundation (CNCF), which is part of The Linux Foundation. This was a massive step, as it places OpenTofu under the same trusted, vendor-neutral governance as other major projects like Kubernetes, Prometheus, and Helm. This guarantees it will remain open-source forever.
+
+
+2.) How Terraform Authenticates to AWS
+--------------------------------------
+
+	- When you execute a command like terraform apply from your terminal, Terraform needs AWS credentials to make API calls. It doesn't just look in one place; it searches in a specific, prioritized order known as the credential provider chain.
+
+	- The order of precedence to find AWS credentials:
+
+		- Static Credentials in the Provider Block (Bad Practice - For Testing Only)
+
+			- You can hardcode credentials directly in your provider.tf file.
+
+			- Why it's bad: This commits your secret keys directly into version control. It is a major security risk and should never be used in production code.
+
+				# AVOID THIS IN PRODUCTION
+				provider "aws" {
+				  region     = "us-east-1"
+				  access_key = "AKIA..."
+				  secret_key = "..."
+				}
+
+
+	- Environment Variables (Common in CI/CD)
+
+		- Terraform will look for standard AWS environment variables. This is a very common method for CI/CD systems (like GitHub Actions, GitLab CI, Jenkins) where you can securely inject secrets as environment variables for a pipeline job.
+
+			- AWS_ACCESS_KEY_ID
+			- AWS_SECRET_ACCESS_KEY
+			- AWS_SESSION_TOKEN (Needed for temporary credentials)
+
+
+	- Shared Credentials & Config Files (The .aws folder)
+
+		- This is the most common method for running Terraform from an engineer's machine.
+
+		- Terraform searches in the user's home directory (e.g., ~/.aws/ on Linux/macOS, %USERPROFILE%\.aws\ on Windows).
+
+		- ~/.aws/credentials: This file stores the static, long-lived access keys. You can define multiple "profiles".
+
+			[default]
+			aws_access_key_id = AKIA...
+			aws_secret_access_key = ...
+
+			[dev-account]
+			aws_access_key_id = AKIA...
+			aws_secret_access_key = ...
+			
+		- How to use a profile: You tell Terraform which profile to use in the provider block. If you don't specify one, it uses [default].
+
+			# Good practice for local development
+			provider "aws" {
+			  region  = "us-west-2"
+			  profile = "dev-account" # Tells Terraform to use the [dev-account] profile
+			}
+
+----------------------------------------------------------------------------------------------------
+
+Session 2:
+-----------
+
+1.) Comparing Lists in Terraform 
+---------------------------------
+
+
+Scenario 1: Creating a resource ONLY if an element exists in a list.
+
+Let's say you have a module that should only create an S3 bucket for specific environments (prod, staging).
+
+Generated hcl
+variable "current_environment" {
+  description = "The environment we are currently deploying."
+  type        = string
+  default     = "dev"
+}
+
+variable "environments_with_s3_logging" {
+  description = "A list of environments that should have S3 logging enabled."
+  type        = list(string)
+  default     = ["prod", "staging"]
+}
+
+# The contains() function is perfect for this.
+# It returns true if the list contains the given element, otherwise false.
+
+resource "aws_s3_bucket" "logging_bucket" {
+  # The ternary operator is used: condition ? value_if_true : value_if_false
+  # If the condition is true, count is 1 (create the bucket).
+  # If false, count is 0 (do not create the bucket).
+  count = contains(var.environments_with_s3_logging, var.current_environment) ? 1 : 0
+
+  bucket = "my-app-logs-${var.current_environment}"
+}
+
+In this example, terraform apply with var.current_environment = "prod" will create the bucket.
+
+terraform apply with var.current_environment = "dev" will not create the bucket.
