@@ -153,3 +153,132 @@ resource "aws_s3_bucket" "logging_bucket" {
 In this example, terraform apply with var.current_environment = "prod" will create the bucket.
 
 terraform apply with var.current_environment = "dev" will not create the bucket.
+
+----------------------------------------------------------------------------------------------------
+
+Session 3:
+-----------
+
+
+1. Working with modules in private git repository 
+--------------------------------------------------
+
+When working with Terraform at scale, you will create reusable modules to avoid repeating code. Often, these modules contain proprietary logic and are stored in private Git repositories (e.g., on GitHub, GitLab, Bitbucket).
+
+The problem is that when you run terraform init, Terraform needs to download these modules. 
+
+If the repository is private, Terraform will fail with an authentication error unless you provide a way for it to securely access the repository.
+
+Solution: Using .gitconfig with a Personal Access Token (PAT)
+-------------------------------------------------------------
+
+A common method, especially for local development and CI/CD environments, is to configure Git to automatically use an authenticated URL. This is done by modifying the global .gitconfig file in the user's home directory.
+
+- Generate a Personal Access Token (PAT) in your git repo where the private modules are hosted
+
+- Modify Your .gitconfig File:
+
+Open the .gitconfig file located in your user's home directory (~/.gitconfig on Linux/macOS, C:\Users\<YourUser>\.gitconfig on Windows).
+
+Add following:
+
+[url "https://<username>:<YOUR_PAT_HERE>@<git-repo>"]
+    insteadOf = https://<git-repo>
+
+Reference link: 
+
+https://github.com/orgs/gruntwork-io/discussions/784
+https://medium.com/@dipandergoyal/terraform-using-private-git-repo-as-module-source-d20d8cec7c5
+https://forum.gitlab.com/t/gitlab-ci-cd-authentication-to-a-different-repository-using-terrafrom/95717
+https://wahlnetwork.com/2020/08/11/using-private-git-repositories-as-terraform-modules/
+
+
+
+----------------------------------------------------------------------------------------------------
+
+Session 4:
+-----------
+
+1.)  Terraform Provisioners: File or Remote-Exec provisioner:
+-------------------------------------------------------------
+
+Important Note: 
+
+- Provisioners should be considered a last resort for bootstrapping a resource. 
+
+- The modern, preferred approach is to use dedicated Configuration Management tools (like Ansible, Chef, Puppet). 
+
+- Provisioners can add complexity and brittleness to your Terraform runs.
+
+
+Few Pre-reqs: 
+
+A. Network Connectivity: The machine running Terraform (your "workstation") must be able to reach the target server.
+
+	Scenario 1 (Same Network): Both the workstation and the target EC2 instance are in the same VPC.
+	Scenario 2 (Public Access): The target EC2 instance has a public IP, and the workstation can reach it over the internet.
+
+	Firewall/Security Group Rules: The Security Group associated with the target EC2 instance must allow inbound traffic on the required port from the Terraform workstation's IP address.
+	
+B. Authentication Credentials:
+	Linux: A valid SSH private key (.pem file) that corresponds to the key pair assigned to the EC2 instance.
+	Windows: WinRM username and password.
+
+C. Connection Ports:
+	Linux: SSH (port 22)
+	Windows: RDP (port 3389 for remote desktop) and WinRM (port 5985 for HTTP / 5986 for HTTPS).
+
+----
+
+
+2.) Overview of Core AWS Services
+---------------------------------
+
+Foundational Services:
+Route53 - Managed DNS service
+VPC - For creating the networks
+IAM USer - For User MGMT
+IAM Role - AWS service to service communication
+
+For event driven:
+Lambda - Running serverless compute
+S3 - Object based storage
+
+For long Running workloads:
+EC2 - Used for running virtual machines
+EBS - Block Storage
+S3 - Object based storage
+ALB - Managed Load Balancer
+EFS - NFS storage
+RDS - Managed Database service
+
+For containerized application:
+ECR - Storing Docker image
+EKS - Running the managed Kubernetes Cluster
+S3 - Object based storage
+ALB - Managed Load Balancer
+EFS - NFS storage
+RDS - Managed Database service
+
+---
+
+3.) Protecting Your Terraform State File:
+-----------------------------------------
+
+- Enable S3 Bucket Versioning.
+
+	Always enable versioning on the S3 bucket where you store your Terraform state.
+	
+	This is your primary backup and recovery mechanism. If the state file is accidentally corrupted or deleted, you can simply restore a previous, known-good version from the S3 bucket's version history.
+
+- Manual Backup (For Emergencies):
+
+	You can manually pull the current state from your configured backend and save it to a local file.
+
+	This should not be your primary backup strategy. It is useful for inspection or as a last-resort emergency backup.
+
+	# Pulls the state and prints it to standard output
+	terraform state pull
+
+	# Redirects the output to a dated JSON file
+	terraform state pull > state_backup_07-06-2025.json

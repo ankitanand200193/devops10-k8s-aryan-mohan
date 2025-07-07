@@ -14,3 +14,7 @@ Create an EC2 instance.
 If performance = "high", use the instance type t3.large.
 If performance = "medium", use t3.medium.
 For other values, use t3.micro.
+
+## Hint
+Use a conditional expression for the instance_type attribute:
+instance_type = var.performance == "high" ? "t3.large" : var.performance == "medium" ? "t3.medium" : "t3.micro"

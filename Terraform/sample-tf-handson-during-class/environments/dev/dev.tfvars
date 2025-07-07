@@ -1,0 +1,10 @@
+ami_id              = "ami-02c7683e4ca3ebf58"
+instance_type       = "t3.micro"
+key_name            = "demo-01"
+ec2_security_groups = ["sg-0b962de63d72cdbd8"]
+ec2_subnet_id       = "subnet-01ed811e6bd6d7965"
+ec2_volume_size     = 10
+ec2_volume_type     = "gp3"
+instance_name       = "demo-02-tf"
+env_name            = "dev"
+bkt_name            = "dev-random-tf-demo-02"

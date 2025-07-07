@@ -2,7 +2,7 @@
 Deploy Multiple EC2 Instances Using count
 
 ## Objective
-Create a Terraform configuration to deploy 3 AWS EC2 instances
+Create a Terraform configuration to deploy three AWS EC2 instances
 dynamically using the count meta-argument.
 
 ## Requirements:
@@ -11,10 +11,9 @@ unique names to each instance using the count.index meta-argument.
 Output the ID of all created instances.
 
 ## Key Considerations
-The instance type should be t3.micro. The AMI ID should be passed as a
+The instance type should be t2.micro. The AMI ID should be passed as a
 variable. Use tags to name each instance in the format
 example-instance-1, example-instance-2, and example-instance-3.
-
 
 # Problem Statement 2:
 Deploy S3 Buckets for Multiple Environments Using for_each
