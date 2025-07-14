@@ -1,0 +1,34 @@
+Observability:
+
+1.) Monitoring - Metrices like cpu, memory, storage etc.
+
+opensource:
+Nagios (OS / Ent)
+Zabbix (OS / Ent)
+Prometheus -> Grafana (OS / Ent)
+
+Cloud:
+AWS: Cloudwatch / container insights
+Azure: Azure Monitor
+
+Enterprise tools:
+Datadog
+NewRelic
+Dynatrace
+Splunk
+
+2.) Logging - Logs files w.r.t applications, webservers or servers logs files should be collected and stored at a central place
+
+opensource:
+ELK / Elastic Stack - FileBeat -> ElasticSearch -> Kibana
+
+AWS: CloudWatch Logs
+
+Enterprise:
+Splunk
+Datadog
+NewRelic
+Dynatrace
+
+
+3.) Tracing / Application Performance Monitoring (APM) - How is my application performing, e.g. 1 min how many requests can my app serve, if there is a blockage between my application and databases
